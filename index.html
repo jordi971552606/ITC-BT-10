@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITC-BT-10: Previsión de cargas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        
+        :root {
+            --primary-color: #007BFF;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --light-gray: #f0f2f5;
+            --dark-gray: #333;
+            --border-color: #ddd;
+            --white: #fff;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 900px;
+            background-color: var(--white);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        h1, h2, h3 {
+            text-align: center;
+            color: var(--dark-gray);
+        }
+
+        /* --- Component Styles --- */
+        .login-section { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+        .login-box { width: 100%; max-width: 300px; padding: 20px; border: 1px solid var(--border-color); border-radius: 8px; }
+        .login-box h2 { color: var(--primary-color); margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input[type="text"], input[type="password"], input[type="number"], select, input[type="file"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background-color: white; font-family: 'Roboto', sans-serif;
+        }
+        input[type="file"] { padding: 5px; }
+
+        .btn {
+            width: 100%; padding: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 0.3s, transform 0.1s;
+        }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn:active:not(:disabled) { transform: scale(0.98); }
+        .btn-primary { background-color: var(--primary-color); }
+        .btn-primary:hover:not(:disabled) { background-color: #0056b3; }
+        .btn-success { background-color: var(--success-color); }
+        .btn-success:hover:not(:disabled) { background-color: #1e7e34; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover:not(:disabled) { background-color: #5a6268; }
+        .btn-warning { background-color: var(--warning-color); color: #333; }
+        .btn-warning:hover:not(:disabled) { background-color: #e0a800; }
+        
+        .error-message { color: var(--danger-color); text-align: center; margin-bottom: 15px; font-size: 14px; height: 1em; }
+        #upload-feedback { text-align: center; font-weight: bold; margin-top: 10px; }
+
+        .exercise {
+            background-color: #f9f9f9; border: 1px solid #e0e0e0; padding: 20px; margin-bottom: 20px; border-radius: 5px;
+            border-left: 5px solid var(--primary-color);
+        }
+        .exercise.correct { border-left-color: var(--success-color); }
+        .exercise.incorrect { border-left-color: var(--danger-color); }
+        
+        .exercise p { margin: 0 0 15px 0; line-height: 1.6; }
+        .answer-box { display: flex; align-items: center; gap: 10px; }
+        .result-feedback { font-weight: bold; margin-left: 15px; }
+        .result-feedback.correct { color: var(--success-color); }
+        .result-feedback.incorrect { color: var(--danger-color); }
+        
+        #results-summary { text-align: center; font-size: 1.2em; font-weight: bold; margin-top: 30px; padding: 20px; border-radius: 8px; background-color: #e9ecef; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; flex-grow: 1; text-align: left;}
+        .header .btn { width: auto; padding: 8px 15px; }
+        
+        .action-buttons { display: flex; gap: 15px; margin-top: 20px; }
+
+        /* Language Selector Styles */
+        .lang-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+        .lang-selector .btn { width: auto; flex-grow: 1; background-color: #ccc; color: #333; }
+        .lang-selector .btn.active { background-color: var(--primary-color); color: white; }
+
+        /* Teacher's View Styles */
+        .student-report summary {
+            font-size: 1.2em;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .student-report[open] summary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .attempt {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 0 10px 10px 10px;
+        }
+        .attempt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .attempt-header span { font-weight: bold; }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .details-table th, .details-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .details-table th { background-color: #f2f2f2; }
+        .hidden { display: none; }
+
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+<script>
+// Este script es autocontenido y debería funcionar directamente en cualquier navegador moderno.
+
+// Helper functions for randomization
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function randomElement(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+const App = {
+    // --- STATE MANAGEMENT ---
+    state: {
+        currentView: 'login',
+        user: null,
+        studentAnswers: {},
+        exercisesCorrected: false,
+        studentLevel: 0, // 0: intro, 1: quiz1, 1.5: intro2, 2: quiz2
+        reports: {},
+        students: [],
+        language: 'es'
+    },
+
+    // --- DATA ---
+    currentExercises: [],
+    
+    // --- Internationalization (i18n) ---
+    i18n: {
+        es: {
+            // General UI
+            portalTitle: "ITC-BT-10: Previsión de cargas",
+            studentsTitle: "Alumnos",
+            teacherTitle: "Profesor",
+            selectNameLabel: "Selecciona tu nombre",
+            selectNamePlaceholder: "-- Elige un alumno --",
+            accessBtn: "Acceder",
+            teacherUserLabel: "Usuario",
+            teacherPassLabel: "Contraseña",
+            logoutBtn: "Cerrar Sesión",
+            // Student View
+            level0Title: "Nivel 0: Ejemplos Resueltos",
+            level0Desc: "Revisa estos 10 ejercicios resueltos para entender los conceptos clave. Cuando estés listo, pulsa el botón para empezar.",
+            startLevel1Btn: "Empezar Ejercicios (Nivel 1)",
+            level1Title: "Nivel 1: Ejercicios Básicos",
+            level1_5_Title: "Nivel 2: Ejemplos Resueltos",
+            level1_5_Desc: "¡Excelente! Ahora estudia cómo se resuelven los cálculos para edificios completos antes de enfrentarte al desafío final.",
+            startLevel2Btn: "Empezar Desafío (Nivel 2)",
+            level2Title: "Nivel 2: Carga Total de Edificios",
+            checkAnswersBtn: "Corregir Ejercicios",
+            resultsPerfect: "¡Felicidades! Has superado el Nivel 1.",
+            resultsScore: "Calificación:",
+            resultsNeedPerfect: "¡Necesitas 10/10 para avanzar!",
+            nextLevelBtn: "Continuar a los ejemplos del Nivel 2",
+            retryBtn: "Generar Nuevos Ejercicios",
+            resultsExpert: "¡EXCELENTE! Has completado todos los niveles.<br>¡Eres un experto en ITC-BT-10!",
+            resultsKeepTrying: "Sigue intentándolo.",
+            retryLevel2Btn: "Reintentar Nivel 2",
+            // Level 0 Exercises
+            level0: {
+                ex1: { q: "<b>Ejercicio Resuelto 1: Vivienda Básica</b><br>¿Cuál es la potencia mínima a prever para una vivienda de 110 m² sin calefacción eléctrica ni A/C?", ex: "La vivienda no cumple ninguna condición para ser de 'Electrificación Elevada' (superficie < 160 m², sin extras). Por tanto, se considera de <b>Electrificación Básica</b>. La potencia mínima para este grado es de <b>5.750 W</b>." },
+                ex2: { q: "<b>Ejercicio Resuelto 2: Vivienda Elevada por Superficie</b><br>¿Cuál es la potencia mínima a prever para una vivienda de 175 m²?", ex: "La superficie útil (175 m²) es superior a 160 m². Esto la clasifica automáticamente como <b>Electrificación Elevada</b>, cuya potencia mínima a prever es de <b>9.200 W</b>." },
+                ex3: { q: "<b>Ejercicio Resuelto 3: Vivienda Elevada por Equipamiento</b><br>¿Y para una vivienda de 80 m² donde se instalará aire acondicionado?", ex: "Aunque la superficie es pequeña, la previsión de instalar aire acondicionado la convierte en <b>Electrificación Elevada</b>. La potencia mínima es <b>9.200 W</b>." },
+                ex4: { q: "<b>Ejercicio Resuelto 4: Local Comercial Pequeño</b><br>Calcular la previsión de carga para un local comercial de 30 m².", ex: "Se calculan 100 W por m² (30 m² * 100 W/m² = 3.000 W). Sin embargo, la norma establece un mínimo por local de <b>3.450 W</b>. Por lo tanto, esta es la potencia a prever." },
+                ex5: { q: "<b>Ejercicio Resuelto 5: Local Comercial Grande</b><br>Calcular la previsión de carga para una oficina de 200 m².", ex: "Se calculan 100 W por m² (200 m² * 100 W/m² = 20.000 W). Como este valor supera el mínimo de 3.450 W, la potencia a prever es <b>20.000 W</b>." },
+                ex6: { q: "<b>Ejercicio Resuelto 6: Garaje con Ventilación Natural</b><br>Previsión de carga para un garaje de 400 m² con ventilación natural.", ex: "Se calculan 10 W por m² (400 m² * 10 W/m² = 4.000 W). Este valor supera el mínimo de 3.450 W, por lo que la carga es <b>4.000 W</b>." },
+                ex7: { q: "<b>Ejercicio Resuelto 7: Garaje con Ventilación Forzada</b><br>Previsión de carga para un garaje de 150 m² con ventilación forzada.", ex: "Para ventilación forzada se calculan 20 W por m² (150 m² * 20 W/m² = 3.000 W). Este valor es inferior al mínimo de 3.450 W, así que se toma el mínimo: <b>3.450 W</b>." },
+                ex8: { q: "<b>Ejercicio Resuelto 8: Simultaneidad para 5 Viviendas</b><br>Calcular la carga para 5 viviendas con electrificación básica (5.750 W cada una).", ex: "Se busca en la Tabla 1 el coeficiente de simultaneidad para n=5, que es <b>4,6</b>. La carga total es: 5.750 W * 4,6 = <b>26.450 W</b>." },
+                ex9: { q: "<b>Ejercicio Resuelto 9: Simultaneidad para 22 Viviendas</b><br>Calcular la carga para 22 viviendas básicas (5.750 W cada una).", ex: "Para n > 21, se usa la fórmula: 15,3 + (n-21) * 0,5. Para n=22, el coeficiente es 15,3 + (22-21)*0,5 = 15,8. La carga es: 5.750 W * 15,8 = <b>90.850 W</b>." },
+                ex10: { q: "<b>Ejercicio Resuelto 10: Carga Mixta de Viviendas</b><br>Calcular carga para 14 viviendas: 12 básicas (5.750W) y 2 elevadas (9.200W).", ex: "Primero, se calcula la media de potencia: ((12 * 5750) + (2 * 9200)) / 14 = 6.242,8 W. El coeficiente para n=14 es 11,3. La carga total es: 6.242,8 W * 11,3 = <b>70.544 W</b> (redondeado)." }
+            },
+            // Level 1 Dynamic Generator parts
+            level1: {
+                exType1: { q: "Calcule la potencia mínima a prever para una vivienda de {m2} m² sin equipamiento extra." },
+                exType2: { 
+                    surface: "Calcule la potencia mínima a prever para una vivienda de {m2} m².",
+                    equipment: "Calcule la potencia mínima para una vivienda de {m2} m² con previsión de {equip}.",
+                    ac: "aire acondicionado",
+                    heating: "calefacción eléctrica"
+                },
+                exType3: { q: "Calcule la carga para un conjunto de {num} viviendas con electrificación básica (5750W)." },
+                exType4: { q: "Calcule la potencia a prever para un local comercial de {m2} m²." },
+                exType5: { 
+                    forced: "Calcule la potencia para un garaje de {m2} m² con ventilación forzada.",
+                    natural: "Calcule la potencia para un garaje de {m2} m² con ventilación natural."
+                },
+                exType6: { q: "¿Cuál es la potencia prevista para un ascensor tipo {type}?" },
+                exType7: { q: "Calcule la potencia mínima para un local en un edificio de concentración de industrias de {m2} m²." }
+            },
+            // Level 1.5 & 2 Exercises
+            level2common: {
+                totalPower: "Total Edificio:",
+                part1: "<b>1. Viviendas:</b>",
+                part2: "<b>2. Locales:</b>",
+                part3: "<b>3. Serv. Generales:</b>",
+                part4: "<b>4. Carga Vehículo Eléctrico ({spl_status}):</b>",
+                spl: "Con SPL",
+                noSpl: "Sin SPL"
+            },
+            level1_5: {
+                ex1: { 
+                    q: "<b>Edificio 1 (Sin SPL):</b> 20 viv(15b, 5e), 2 locales de 50m², garaje de 1000m² (40 plz, v. forzada), <b>sin SPL</b>, ascensor ITA-2 (7500W), ilum (150m² esc, 80m² port), G. Presión (2000W), Aux (1000W).",
+                    ex: "La carga total es la suma de todas las cargas:<br><b>1. Viviendas:</b> P. Media = ((15*5750)+(5*9200))/20 = 6612.5W. Coef. (n=20) = 14,8. Carga = 6612.5W * 14,8 = 97.865 W.<br><b>2. Locales:</b> 2 * (50 m² * 100 W/m²) = 10.000 W.<br><b>3. Serv. Generales:</b><br>&nbsp;&nbsp;&nbsp;· Garaje (superficie): 1000m² * 20W/m² = 20.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 7.500 W.<br>&nbsp;&nbsp;&nbsp;· Iluminación: (150m²*4W) + (80m²*8W) = 1.240 W.<br>&nbsp;&nbsp;&nbsp;· G. Presión + Aux: 2.000W + 1.000W = 3.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 20.000 + 7.500 + 1.240 + 3.000 = 31.740 W.<br><b>4. Carga Vehículo Eléctrico (Sin SPL):</b><br>&nbsp;&nbsp;&nbsp;· Puntos de recarga: 10% de 40 plazas = 4 puntos.<br>&nbsp;&nbsp;&nbsp;· Factor simultaneidad: 1 (por no tener SPL).<br>&nbsp;&nbsp;&nbsp;· Carga VE = 3680W * 4 * 1 = 14.720 W.<br><b>Total Edificio:</b> 97.865 + 10.000 + 31.740 + 14.720 = <b>154.325 W</b>."
+                },
+                ex2: {
+                    q: "<b>Edificio 2 (Con SPL):</b> 15 viv(10b, 5e), 1 local 100m², garaje 625m² (25 plz, v. forzada), <b>con SPL</b>, asc ITA-3 11500W, ilum 100/50, GP 1800, Aux 1200.",
+                    ex: "<b>1. Viviendas:</b> P. Media = ((10*5750)+(5*9200))/15 = 6900W. Coef. (n=15) = 11,9. Carga = 6900W * 11,9 = 82.110 W.<br><b>2. Local:</b> 100 m² * 100 W/m² = 10.000 W.<br><b>3. Serv. Generales:</b><br>&nbsp;&nbsp;&nbsp;· Garaje (superficie): 625m² * 20W/m² = 12.500 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 11.500 W.<br>&nbsp;&nbsp;&nbsp;· Iluminación: (100m²*4W) + (50m²*8W) = 800 W.<br>&nbsp;&nbsp;&nbsp;· G. Presión + Aux: 1.800W + 1.200W = 3.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 12.500 + 11.500 + 800 + 3.000 = 27.800 W.<br><b>4. Carga Vehículo Eléctrico (Con SPL):</b><br>&nbsp;&nbsp;&nbsp;· Puntos de recarga: 10% de 25 plazas, se redondea a 3 puntos.<br>&nbsp;&nbsp;&nbsp;· Factor simultaneidad: (1 - 0,7 * 1) = 0,3 (por tener SPL).<br>&nbsp;&nbsp;&nbsp;· Carga VE = 3680W * 3 * 0,3 = 3.312 W.<br><b>Total Edificio:</b> 82.110 + 10.000 + 27.800 + 3.312 = <b>123.222 W</b>."
+                },
+                ex3: {
+                    q: "<b>Edificio 3 (Sin SPL):</b> 40 viv(bás), 5 loc 30m², garaje 1250m² (50 plz, v. forzada), <b>sin SPL</b>, asc ITA-1 4500W, ilum 300/150, GP 3000, Aux 2000.",
+                    ex: "<b>1. Viviendas:</b> Coef. (n=40) = 15,3+(19*0,5)=24,8. Carga = 5750W * 24,8 = 142.600 W.<br><b>2. Locales:</b> 5 * 3450W (mínimo) = 17.250 W.<br><b>3. Serv. Generales:</b><br>&nbsp;&nbsp;&nbsp;· Garaje (superficie): 1250m² * 20W/m² = 25.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 4.500 W.<br>&nbsp;&nbsp;&nbsp;· Iluminación: (300m²*4W) + (150m²*8W) = 2.400 W.<br>&nbsp;&nbsp;&nbsp;· G. Presión + Aux: 3.000W + 2.000W = 5.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 25.000 + 4.500 + 2.400 + 5.000 = 36.900 W.<br><b>4. Carga Vehículo Eléctrico (Sin SPL):</b><br>&nbsp;&nbsp;&nbsp;· Puntos: 10% de 50 = 5 puntos.<br>&nbsp;&nbsp;&nbsp;· Factor: 1.<br>&nbsp;&nbsp;&nbsp;· Carga VE = 3680W * 5 * 1 = 18.400 W.<br><b>Total Edificio:</b> 142.600 + 17.250 + 36.900 + 18.400 = <b>215.150 W</b>."
+                },
+                ex4: {
+                    q: "<b>Edificio 4 (Con SPL):</b> 30 viv(elev), 2 loc 200m², garaje 1000m² (40 plz, v. forzada), <b>con SPL</b>, 2 asc ITA-2 7500W, ilum 200/100, GP 2500, Aux 1500.",
+                    ex: "<b>1. Viviendas:</b> Coef. (n=30) = 15,3+(9*0,5)=19,8. Carga = 9200W * 19,8 = 182.160 W.<br><b>2. Locales:</b> 2 * (200m² * 100W/m²) = 40.000 W.<br><b>3. Serv. Generales:</b><br>&nbsp;&nbsp;&nbsp;· Garaje (superficie): 1000m² * 20W/m² = 20.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensores: 2 * 7.500W = 15.000 W.<br>&nbsp;&nbsp;&nbsp;· Iluminación: (200m²*4W) + (100m²*8W) = 1.600 W.<br>&nbsp;&nbsp;&nbsp;· G. Presión + Aux: 2.500W + 1.500W = 4.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 20.000 + 15.000 + 1.600 + 4.000 = 40.600 W.<br><b>4. Carga Vehículo Eléctrico (Con SPL):</b><br>&nbsp;&nbsp;&nbsp;· Puntos: 10% de 40 = 4 puntos.<br>&nbsp;&nbsp;&nbsp;· Factor: 0,3.<br>&nbsp;&nbsp;&nbsp;· Carga VE = 3680W * 4 * 0,3 = 4.416 W.<br><b>Total Edificio:</b> 182.160 + 40.000 + 40.600 + 4.416 = <b>267.176 W</b>."
+                },
+                ex5: {
+                    q: "<b>Edificio 5 (Sin SPL):</b> 12 viv(6b,6e), 1 loc 150m², garaje 500m² (20 plz, v. forzada), <b>sin SPL</b>, asc ITA-3 11500W, ilum 120/60, GP 2200, Aux 1800.",
+                    ex: "<b>1. Viviendas:</b> P. Media = ((6*5750)+(6*9200))/12 = 7475W. Coef. (n=12) = 9,9. Carga = 7475W * 9,9 = 74.003 W.<br><b>2. Local:</b> 150m² * 100W/m² = 15.000 W.<br><b>3. Serv. Generales:</b><br>&nbsp;&nbsp;&nbsp;· Garaje (superficie): 500m² * 20W/m² = 10.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 11.500 W.<br>&nbsp;&nbsp;&nbsp;· Iluminación: (120m²*4W) + (60m²*8W) = 960 W.<br>&nbsp;&nbsp;&nbsp;· G. Presión + Aux: 2.200W + 1.800W = 4.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 10.000 + 11.500 + 960 + 4.000 = 26.460 W.<br><b>4. Carga Vehículo Eléctrico (Sin SPL):</b><br>&nbsp;&nbsp;&nbsp;· Puntos: 10% de 20 = 2 puntos.<br>&nbsp;&nbsp;&nbsp;· Factor: 1.<br>&nbsp;&nbsp;&nbsp;· Carga VE = 3680W * 2 * 1 = 7.360 W.<br><b>Total Edificio:</b> 74.003 + 15.000 + 26.460 + 7.360 = <b>122.823 W</b>."
+                }
+            },
+            level2: {
+                ex1: { q: "<b>Edificio 1 (Sin SPL):</b> 15 viv(bás), 2 loc 40m², garaje 750m² (30 plz, v.forzada), <b>sin SPL</b>, asc ITA-2 7500W, ilum 150/70, GP 2000, Aux 1000." },
+                ex2: { q: "<b>Edificio 2 (Con SPL):</b> 35 viv(30b,5e), 1 loc 500m², garaje 2000m² (80 plz, v.forzada), <b>con SPL</b>, 2 asc ITA-1 4500W, ilum 250/100, GP 2500, Aux 1500." },
+                ex3: { q: "<b>Edificio 3 (Sin SPL):</b> 22 viv(elev), 3 loc 30m², garaje 875m² (35 plz, v.forzada), <b>sin SPL</b>, asc ITA-3 11500W, ilum 180/90, GP 2200, Aux 1300." },
+                ex4: { q: "<b>Edificio 4 (Sin SPL):</b> 18 viv(9b,9e), 1 loc 250m², garaje 1500m² (60 plz, v.forzada), <b>sin SPL</b>, asc ITA-4 18500W, ilum 220/110, GP 2800, Aux 1700." },
+                ex5: { q: "<b>Edificio 5 (Con SPL):</b> 50 viv(bás), 5 loc 100m², garaje 2500m² (100 plz, v.forzada), <b>con SPL</b>, 2 asc ITA-3 11500W, ilum 400/200, GP 3000, Aux 2500." }
+            }
+        },
+        ca: {
+            // General UI
+            portalTitle: "ITC-BT-10: Previsió de càrregues",
+            studentsTitle: "Alumnes",
+            teacherTitle: "Professor",
+            selectNameLabel: "Selecciona el teu nom",
+            selectNamePlaceholder: "-- Tria un alumne --",
+            accessBtn: "Accedir",
+            teacherUserLabel: "Usuari",
+            teacherPassLabel: "Contrasenya",
+            logoutBtn: "Tancar Sessió",
+            // Student View
+            level0Title: "Nivell 0: Exemples Resolts",
+            level0Desc: "Revisa aquests 10 exercicis resolts per entendre els conceptes clau. Quan estiguis a punt, prem el botó per començar.",
+            startLevel1Btn: "Començar Exercicis (Nivell 1)",
+            level1Title: "Nivell 1: Exercicis Bàsics",
+            level1_5_Title: "Nivell 2: Exemples Resolts",
+            level1_5_Desc: "Excel·lent! Ara estudia com es resolen els càlculs per a edificis complets abans d'enfrontar-te al desafiament final.",
+            startLevel2Btn: "Començar Desafiament (Nivell 2)",
+            level2Title: "Nivell 2: Càrrega Total d'Edificis",
+            checkAnswersBtn: "Corregir Exercicis",
+            resultsPerfect: "Felicitats! Has superat el Nivell 1.",
+            resultsScore: "Qualificació:",
+            resultsNeedPerfect: "Necessites 10/10 per avançar!",
+            nextLevelBtn: "Continuar als exemples del Nivell 2",
+            retryBtn: "Generar Nous Exercicis",
+            resultsExpert: "EXCEL·LENT! Has completat tots els nivells.<br>Ets un expert en ITC-BT-10!",
+            resultsKeepTrying: "Continua intentant-ho.",
+            retryLevel2Btn: "Reintentar Nivell 2",
+            // Level 0 Exercises
+            level0: {
+                ex1: { q: "<b>Exercici Resolt 1: Habitatge Bàsic</b><br>Quina és la potència mínima a preveure per a un habitatge de 110 m² sense calefacció elèctrica ni A/C?", ex: "L'habitatge no compleix cap condició per ser d''Electrificació Elevada' (superfície < 160 m², sense extres). Per tant, es considera d'<b>Electrificació Bàsica</b>. La potència mínima per a aquest grau és de <b>5.750 W</b>." },
+                ex2: { q: "<b>Exercici Resolt 2: Habitatge Elevat per Superfície</b><br>Quina és la potència mínima a preveure per a un habitatge de 175 m²?", ex: "La superfície útil (175 m²) és superior a 160 m². Això el classifica automàticament com a <b>Electrificació Elevada</b>, la potència mínima de la qual a preveure és de <b>9.200 W</b>." },
+                ex3: { q: "<b>Exercici Resolt 3: Habitatge Elevat per Equipament</b><br>I per a un habitatge de 80 m² on s'instal·larà aire condicionat?", ex: "Encara que la superfície és petita, la previsió d'instal·lar aire condicionat el converteix en <b>Electrificació Elevada</b>. La potència mínima és <b>9.200 W</b>." },
+                ex4: { q: "<b>Exercici Resolt 4: Local Comercial Petit</b><br>Calcular la previsió de càrrega per a un local comercial de 30 m².", ex: "Es calculen 100 W per m² (30 m² * 100 W/m² = 3.000 W). No obstant això, la norma estableix un mínim per local de <b>3.450 W</b>. Per tant, aquesta és la potència a preveure." },
+                ex5: { q: "<b>Exercici Resolt 5: Local Comercial Gran</b><br>Calcular la previsió de càrrega per a una oficina de 200 m².", ex: "Es calculen 100 W per m² (200 m² * 100 W/m² = 20.000 W). Com que aquest valor supera el mínim de 3.450 W, la potència a preveure és <b>20.000 W</b>." },
+                ex6: { q: "<b>Exercici Resolt 6: Garatge amb Ventilació Natural</b><br>Previsió de càrrega per a un garatge de 400 m² amb ventilació natural.", ex: "Es calculen 10 W per m² (400 m² * 10 W/m² = 4.000 W). Aquest valor supera el mínim de 3.450 W, per la qual cosa la càrrega és <b>4.000 W</b>." },
+                ex7: { q: "<b>Exercici Resolt 7: Garatge amb Ventilació Forçada</b><br>Previsió de càrrega per a un garatge de 150 m² amb ventilació forçada.", ex: "Per a ventilació forçada es calculen 20 W per m² (150 m² * 20 W/m² = 3.000 W). Aquest valor és inferior al mínim de 3.450 W, així que es pren el mínim: <b>3.450 W</b>." },
+                ex8: { q: "<b>Exercici Resolt 8: Simultaneïtat per a 5 Habitatges</b><br>Calcular la càrrega per a 5 habitatges amb electrificació bàsica (5.750 W cadascun).", ex: "Es busca a la Taula 1 el coeficient de simultaneïtat per a n=5, que és <b>4,6</b>. La càrrega total és: 5.750 W * 4,6 = <b>26.450 W</b>." },
+                ex9: { q: "<b>Exercici Resolt 9: Simultaneïtat per a 22 Habitatges</b><br>Calcular la càrrega per a 22 habitatges bàsics (5.750 W cadascun).", ex: "Per a n > 21, s'usa la fórmula: 15,3 + (n-21) * 0,5. Per a n=22, el coeficient és 15,3 + (22-21)*0,5 = 15,8. La càrrega és: 5.750 W * 15,8 = <b>90.850 W</b>." },
+                ex10: { q: "<b>Exercici Resolt 10: Càrrega Mixta d'Habitatges</b><br>Calcular càrrega per a 14 habitatges: 12 bàsics (5.750W) i 2 elevats (9.200W).", ex: "Primer, es calcula la mitjana de potència: ((12 * 5750) + (2 * 9200)) / 14 = 6.242,8 W. El coeficient per a n=14 és 11,3. La càrrega total és: 6.242,8 W * 11,3 = <b>70.544 W</b> (arrodonit)." }
+            },
+            // Level 1 Dynamic Generator parts
+            level1: {
+                exType1: { q: "Calcula la potència mínima a preveure per a un habitatge de {m2} m² sense equipament extra." },
+                exType2: { 
+                    surface: "Calcula la potència mínima a preveure per a un habitatge de {m2} m².",
+                    equipment: "Calcula la potència mínima per a un habitatge de {m2} m² amb previsió de {equip}.",
+                    ac: "aire condicionat",
+                    heating: "calefacció elèctrica"
+                },
+                exType3: { q: "Calcula la càrrega per a un conjunt de {num} habitatges amb electrificació bàsica (5750W)." },
+                exType4: { q: "Calcula la potència a preveure per a un local comercial de {m2} m²." },
+                exType5: { 
+                    forced: "Calcula la potència per a un garatge de {m2} m² amb ventilació forçada.",
+                    natural: "Calcula la potència per a un garatge de {m2} m² amb ventilació natural."
+                },
+                exType6: { q: "Quina és la potència prevista per a un ascensor tipus {type}?" },
+                exType7: { q: "Calcula la potència mínima per a un local en un edifici de concentració d'indústries de {m2} m²." }
+            },
+            // Level 1.5 & 2 Exercises
+            level2common: {
+                totalPower: "Total Edifici:",
+                part1: "<b>1. Habitatges:</b>",
+                part2: "<b>2. Locals:</b>",
+                part3: "<b>3. Serveis Generals:</b>",
+                part4: "<b>4. Càrrega Vehicle Elèctric ({spl_status}):</b>",
+                spl: "Amb SPL",
+                noSpl: "Sense SPL"
+            },
+            level1_5: {
+                ex1: { 
+                    q: "<b>Edifici 1 (Sense SPL):</b> 20 hab(15b, 5e), 2 locals de 50m², garatge de 1000m² (40 pl, v. forçada), <b>sense SPL</b>, ascensor ITA-2 (7500W), il·lum (150m² esc, 80m² port), G. Pressió (2000W), Aux (1000W).",
+                    ex: "La càrrega total és la suma de totes les càrregues:<br><b>1. Habitatges:</b> P. Mitja = ((15*5750)+(5*9200))/20 = 6612.5W. Coef. (n=20) = 14,8. Càrrega = 6612.5W * 14,8 = 97.865 W.<br><b>2. Locals:</b> 2 * (50 m² * 100 W/m²) = 10.000 W.<br><b>3. Serveis Generals:</b><br>&nbsp;&nbsp;&nbsp;· Garatge (superfície): 1000m² * 20W/m² = 20.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 7.500 W.<br>&nbsp;&nbsp;&nbsp;· Il·luminació: (150m²*4W) + (80m²*8W) = 1.240 W.<br>&nbsp;&nbsp;&nbsp;· G. Pressió + Aux: 2.000W + 1.000W = 3.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 20.000 + 7.500 + 1.240 + 3.000 = 31.740 W.<br><b>4. Càrrega Vehicle Elèctric (Sense SPL):</b><br>&nbsp;&nbsp;&nbsp;· Punts de recàrrega: 10% de 40 places = 4 punts.<br>&nbsp;&nbsp;&nbsp;· Factor simultaneïtat: 1 (per no tenir SPL).<br>&nbsp;&nbsp;&nbsp;· Càrrega VE = 3680W * 4 * 1 = 14.720 W.<br><b>Total Edifici:</b> 97.865 + 10.000 + 31.740 + 14.720 = <b>154.325 W</b>."
+                },
+                ex2: {
+                    q: "<b>Edifici 2 (Amb SPL):</b> 15 hab(10b, 5e), 1 local 100m², garatge 625m² (25 pl, v. forçada), <b>amb SPL</b>, asc ITA-3 11500W, il·lum 100/50, GP 1800, Aux 1200.",
+                    ex: "<b>1. Habitatges:</b> P. Mitja = ((10*5750)+(5*9200))/15 = 6900W. Coef. (n=15) = 11,9. Càrrega = 6900W * 11,9 = 82.110 W.<br><b>2. Local:</b> 100 m² * 100 W/m² = 10.000 W.<br><b>3. Serveis Generals:</b><br>&nbsp;&nbsp;&nbsp;· Garatge (superfície): 625m² * 20W/m² = 12.500 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 11.500 W.<br>&nbsp;&nbsp;&nbsp;· Il·luminació: (100m²*4W) + (50m²*8W) = 800 W.<br>&nbsp;&nbsp;&nbsp;· G. Pressió + Aux: 1.800W + 1.200W = 3.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 12.500 + 11.500 + 800 + 3.000 = 27.800 W.<br><b>4. Càrrega Vehicle Elèctric (Amb SPL):</b><br>&nbsp;&nbsp;&nbsp;· Punts de recàrrega: 10% de 25 places, s'arrodoneix a 3 punts.<br>&nbsp;&nbsp;&nbsp;· Factor simultaneïtat: (1 - 0,7 * 1) = 0,3 (per tenir SPL).<br>&nbsp;&nbsp;&nbsp;· Càrrega VE = 3680W * 3 * 0,3 = 3.312 W.<br><b>Total Edifici:</b> 82.110 + 10.000 + 27.800 + 3.312 = <b>123.222 W</b>."
+                },
+                ex3: {
+                    q: "<b>Edifici 3 (Sense SPL):</b> 40 hab(bàs), 5 loc 30m², garatge 1250m² (50 pl, v. forçada), <b>sense SPL</b>, asc ITA-1 4500W, il·lum 300/150, GP 3000, Aux 2000.",
+                    ex: "<b>1. Habitatges:</b> Coef. (n=40) = 15,3+(19*0,5)=24,8. Càrrega = 5750W * 24,8 = 142.600 W.<br><b>2. Locals:</b> 5 * 3450W (mínim) = 17.250 W.<br><b>3. Serveis Generals:</b><br>&nbsp;&nbsp;&nbsp;· Garatge (superfície): 1250m² * 20W/m² = 25.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 4.500 W.<br>&nbsp;&nbsp;&nbsp;· Il·luminació: (300m²*4W) + (150m²*8W) = 2.400 W.<br>&nbsp;&nbsp;&nbsp;· G. Pressió + Aux: 3.000W + 2.000W = 5.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 25.000 + 4.500 + 2.400 + 5.000 = 36.900 W.<br><b>4. Càrrega Vehicle Elèctric (Sense SPL):</b><br>&nbsp;&nbsp;&nbsp;· Punts: 10% de 50 = 5 punts.<br>&nbsp;&nbsp;&nbsp;· Factor: 1.<br>&nbsp;&nbsp;&nbsp;· Càrrega VE = 3680W * 5 * 1 = 18.400 W.<br><b>Total Edifici:</b> 142.600 + 17.250 + 36.900 + 18.400 = <b>215.150 W</b>."
+                },
+                ex4: {
+                    q: "<b>Edifici 4 (Amb SPL):</b> 30 hab(elev), 2 loc 200m², garatge 1000m² (40 pl, v. forçada), <b>amb SPL</b>, 2 asc ITA-2 7500W, il·lum 200/100, GP 2500, Aux 1500.",
+                    ex: "<b>1. Habitatges:</b> Coef. (n=30) = 15,3+(9*0,5)=19,8. Càrrega = 9200W * 19,8 = 182.160 W.<br><b>2. Locals:</b> 2 * (200m² * 100W/m²) = 40.000 W.<br><b>3. Serveis Generals:</b><br>&nbsp;&nbsp;&nbsp;· Garatge (superfície): 1000m² * 20W/m² = 20.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensors: 2 * 7.500W = 15.000 W.<br>&nbsp;&nbsp;&nbsp;· Il·luminació: (200m²*4W) + (100m²*8W) = 1.600 W.<br>&nbsp;&nbsp;&nbsp;· G. Pressió + Aux: 2.500W + 1.500W = 4.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 20.000 + 15.000 + 1.600 + 4.000 = 40.600 W.<br><b>4. Càrrega Vehicle Elèctric (Amb SPL):</b><br>&nbsp;&nbsp;&nbsp;· Punts: 10% de 40 = 4 punts.<br>&nbsp;&nbsp;&nbsp;· Factor: 0,3.<br>&nbsp;&nbsp;&nbsp;· Càrrega VE = 3680W * 4 * 0,3 = 4.416 W.<br><b>Total Edifici:</b> 182.160 + 40.000 + 40.600 + 4.416 = <b>267.176 W</b>."
+                },
+                ex5: {
+                    q: "<b>Edifici 5 (Sense SPL):</b> 12 hab(6b,6e), 1 loc 150m², garatge 500m² (20 pl, v. forçada), <b>sense SPL</b>, asc ITA-3 11500W, il·lum 120/60, GP 2200, Aux 1800.",
+                    ex: "<b>1. Habitatges:</b> P. Mitja = ((6*5750)+(6*9200))/12 = 7475W. Coef. (n=12) = 9,9. Càrrega = 7475W * 9,9 = 74.003 W.<br><b>2. Local:</b> 150m² * 100W/m² = 15.000 W.<br><b>3. Serveis Generals:</b><br>&nbsp;&nbsp;&nbsp;· Garatge (superfície): 500m² * 20W/m² = 10.000 W.<br>&nbsp;&nbsp;&nbsp;· Ascensor: 11.500 W.<br>&nbsp;&nbsp;&nbsp;· Il·luminació: (120m²*4W) + (60m²*8W) = 960 W.<br>&nbsp;&nbsp;&nbsp;· G. Pressió + Aux: 2.200W + 1.800W = 4.000 W.<br>&nbsp;&nbsp;&nbsp;· Subtotal Serv. Gen.: 10.000 + 11.500 + 960 + 4.000 = 26.460 W.<br><b>4. Càrrega Vehicle Elèctric (Sense SPL):</b><br>&nbsp;&nbsp;&nbsp;· Punts: 10% de 20 = 2 punts.<br>&nbsp;&nbsp;&nbsp;· Factor: 1.<br>&nbsp;&nbsp;&nbsp;· Càrrega VE = 3680W * 2 * 1 = 7.360 W.<br><b>Total Edifici:</b> 74.003 + 15.000 + 26.460 + 7.360 = <b>122.823 W</b>."
+                }
+            },
+             level2: {
+                ex1: { q: "<b>Edifici 1 (Sense SPL):</b> 15 hab(bàs), 2 loc 40m², garatge 750m² (30 pl, v.forçada), <b>sense SPL</b>, asc ITA-2 7500W, il·lum 150/70, GP 2000, Aux 1000." },
+                ex2: { q: "<b>Edifici 2 (Amb SPL):</b> 35 hab(30b,5e), 1 loc 500m², garatge 2000m² (80 pl, v.forçada), <b>amb SPL</b>, 2 asc ITA-1 4500W, il·lum 250/100, GP 2500, Aux 1500." },
+                ex3: { q: "<b>Edifici 3 (Sense SPL):</b> 22 hab(elev), 3 loc 30m², garatge 875m² (35 pl, v.forçada), <b>sense SPL</b>, asc ITA-3 11500W, il·lum 180/90, GP 2200, Aux 1300." },
+                ex4: { q: "<b>Edifici 4 (Sense SPL):</b> 18 hab(9b,9e), 1 loc 250m², garatge 1500m² (60 pl, v.forçada), <b>sense SPL</b>, asc ITA-4 18500W, il·lum 220/110, GP 2800, Aux 1700." },
+                ex5: { q: "<b>Edifici 5 (Amb SPL):</b> 50 hab(bàs), 5 loc 100m², garatge 2500m² (100 pl, v.forçada), <b>amb SPL</b>, 2 asc ITA-3 11500W, il·lum 400/200, GP 3000, Aux 2500." }
+            }
+        }
+    },
+    
+    // --- INITIALIZATION ---
+    init() { 
+        this.loadStudents();
+        const savedLang = localStorage.getItem('appLanguage') || 'es';
+        this.state.language = savedLang;
+        this.render(); 
+    },
+    
+    // --- RENDER LOGIC ---
+    render() {
+        const appContainer = document.getElementById('app');
+        appContainer.innerHTML = '';
+        switch (this.state.currentView) {
+            case 'student': appContainer.innerHTML = this.templates.studentView(); this.addStudentListeners(); break;
+            case 'teacher': appContainer.innerHTML = this.templates.teacherView(); this.addTeacherListeners(); break;
+            default: appContainer.innerHTML = this.templates.loginView(); this.addLoginListeners();
+        }
+    },
+    
+    // --- METHODS ---
+    getLevel0Exercises(lang) {
+        const text = this.i18n[lang].level0;
+        return [
+            { q: text.ex1.q, explanation: text.ex1.ex, a: 5750 },
+            { q: text.ex2.q, explanation: text.ex2.ex, a: 9200 },
+            { q: text.ex3.q, explanation: text.ex3.ex, a: 9200 },
+            { q: text.ex4.q, explanation: text.ex4.ex, a: 3450 },
+            { q: text.ex5.q, explanation: text.ex5.ex, a: 20000 },
+            { q: text.ex6.q, explanation: text.ex6.ex, a: 4000 },
+            { q: text.ex7.q, explanation: text.ex7.ex, a: 3450 },
+            { q: text.ex8.q, explanation: text.ex8.ex, a: 26450 },
+            { q: text.ex9.q, explanation: text.ex9.ex, a: 90850 },
+            { q: text.ex10.q, explanation: text.ex10.ex, a: 70544 },
+        ];
+    },
+
+    generateLevel1ExerciseByType(type, index, lang) {
+        let q, a;
+        const text = this.i18n[lang].level1;
+
+        switch (type) {
+            case 1: { // Vivienda Básica
+                const m2 = randomInt(70, 159);
+                q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType1.q.replace('{m2}', m2)}`;
+                a = 5750;
+                break;
+            }
+            case 2: { // Vivienda Elevada
+                const reason = randomElement(['superficie', 'equipamiento']);
+                if (reason === 'superficie') {
+                    const m2 = randomInt(161, 250);
+                    q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType2.surface.replace('{m2}', m2)}`;
+                } else {
+                    const m2 = randomInt(70, 159);
+                    const equip = randomElement([text.exType2.ac, text.exType2.heating]);
+                    q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType2.equipment.replace('{m2}', m2).replace('{equip}', equip)}`;
+                }
+                a = 9200;
+                break;
+            }
+            case 3: { // Simultaneidad Viviendas
+                const numViviendas = randomInt(2, 40);
+                let coeff;
+                if (numViviendas <= 21) {
+                    const coeffs = [0, 1, 2, 3, 3.8, 4.6, 5.4, 6.2, 7, 7.8, 8.5, 9.2, 9.9, 10.6, 11.3, 11.9, 12.5, 13.1, 13.7, 14.3, 14.8, 15.3];
+                    coeff = coeffs[numViviendas];
+                } else {
+                    coeff = 15.3 + (numViviendas - 21) * 0.5;
+                }
+                q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType3.q.replace('{num}', numViviendas)}`;
+                a = Math.round(5750 * coeff);
+                break;
+            }
+            case 4: { // Locales Comerciales / Oficinas
+                const m2 = randomInt(20, 400);
+                q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType4.q.replace('{m2}', m2)}`;
+                a = Math.max(m2 * 100, 3450);
+                break;
+            }
+            case 5: { // Garajes
+                const isForzada = Math.random() > 0.5;
+                const m2 = randomInt(100, 600);
+                if (isForzada) {
+                    q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType5.forced.replace('{m2}', m2)}`;
+                    a = Math.max(m2 * 20, 3450);
+                } else {
+                    q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType5.natural.replace('{m2}', m2)}`;
+                    a = Math.max(m2 * 10, 3450);
+                }
+                break;
+            }
+            case 6: { // Servicios Generales (Ascensores)
+                const ascensores = {'ITA-1': 4500, 'ITA-2': 7500, 'ITA-3': 11500, 'ITA-4': 18500};
+                const ascensorKeys = Object.keys(ascensores);
+                const randomAscensor = randomElement(ascensorKeys);
+                q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType6.q.replace('{type}', randomAscensor)}`;
+                a = ascensores[randomAscensor];
+                break;
+            }
+            case 7: { // Industrias
+                const m2 = randomInt(50, 200);
+                q = `<b>${lang === 'es' ? 'Ejercicio' : 'Exercici'} ${index + 1}:</b> ${text.exType7.q.replace('{m2}', m2)}`;
+                a = Math.max(m2 * 125, 10350);
+                break;
+            }
+        }
+        return { q, a };
+    },
+    generateLevel1Exercises() {
+        this.currentExercises = [];
+        const coreTypes = [1, 2, 3, 4, 5, 6, 7];
+        const extraTypes = [randomInt(1, 7), randomInt(1, 7), randomInt(1, 7)];
+        let exerciseTypePlan = [...coreTypes, ...extraTypes];
+        exerciseTypePlan.sort(() => 0.5 - Math.random());
+        for (let i = 0; i < 10; i++) {
+            const type = exerciseTypePlan[i];
+            this.currentExercises.push(this.generateLevel1ExerciseByType(type, i, this.state.language));
+        }
+    },
+    
+    // --- HTML TEMPLATES ---
+    templates: {
+        loginView() {
+            const lang = App.state.language;
+            const text = App.i18n[lang];
+            const studentOptions = App.state.students.map(student => `<option value="${student.name}">${student.name}</option>`).join('');
+            
+            return `<h1>${text.portalTitle}</h1>
+                    <div id="login-error" class="error-message"></div>
+                    <div class="login-section">
+                        <div class="login-box">
+                            <h2>${text.studentsTitle}</h2>
+                            <div class="lang-selector">
+                                <button id="lang-es" class="btn ${lang === 'es' ? 'active' : ''}">Castellano</button>
+                                <button id="lang-ca" class="btn ${lang === 'ca' ? 'active' : ''}">Català</button>
+                            </div>
+                            <form id="student-login-form">
+                                <div class="form-group">
+                                    <label for="student-user">${text.selectNameLabel}</label>
+                                    <select id="student-user"><option value="">${text.selectNamePlaceholder}</option>${studentOptions}</select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">${text.accessBtn}</button>
+                            </form>
+                        </div>
+                        <div class="login-box">
+                            <h2>${text.teacherTitle}</h2>
+                            <form id="teacher-login-form">
+                                <div class="form-group">
+                                    <label for="teacher-user">${text.teacherUserLabel}</label>
+                                    <input type="text" id="teacher-user" value="profe">
+                                </div>
+                                <div class="form-group">
+                                    <label for="teacher-pass">${text.teacherPassLabel}</label>
+                                    <input type="password" id="teacher-pass" value="Feanor">
+                                </div>
+                                <button type="submit" class="btn btn-primary">${text.accessBtn}</button>
+                            </form>
+                        </div>
+                    </div>`;
+        },
+        studentView() {
+            const lang = App.state.language;
+            const text = App.i18n[lang];
+            let exercises, title, exercisesHTML = '', summaryHTML = '', actionButtonsHTML = '';
+            
+            if (App.state.studentLevel === 0) {
+                const level0Ex = App.getLevel0Exercises(lang);
+                exercisesHTML = level0Ex.map(ex => `<div class="exercise"><p>${ex.q}</p><p><i><b>${lang === 'es' ? 'Explicación' : 'Explicació'}:</b> ${ex.explanation}</i></p><p style="text-align: right; font-size: 1.1em;"><b>${lang === 'es' ? 'Respuesta' : 'Resposta'}: ${ex.a} W</b></p></div>`).join('');
+                return `<div class="header"><h1>${text.level0Title}</h1><button id="logout-btn" class="btn btn-secondary">${text.logoutBtn}</button></div><p>${text.level0Desc}</p><div>${exercisesHTML}</div><div class="action-buttons"><button id="start-level1-btn" class="btn btn-success">${text.startLevel1Btn}</button></div>`;
+            }
+
+            if (App.state.studentLevel === 1.5) {
+                const level1_5_Ex = this.i18n[lang].level1_5;
+                const level1_5_Data = [this.level1_5_Exercises[0].a(), this.level1_5_Exercises[1].a(), this.level1_5_Exercises[2].a(), this.level1_5_Exercises[3].a(), this.level1_5_Exercises[4].a()];
+                exercisesHTML = Object.values(level1_5_Ex).map((ex, i) => `<div class="exercise"><p>${ex.q}</p><p><i><b>${lang === 'es' ? 'Explicación' : 'Explicació'}:</b> ${ex.ex}</i></p><p style="text-align: right; font-size: 1.1em;"><b>${lang === 'es' ? 'Respuesta' : 'Resposta'}: ${level1_5_Data[i]} W</b></p></div>`).join('');
+                return `<div class="header"><h1>${text.level1_5_Title}</h1><button id="logout-btn" class="btn btn-secondary">${text.logoutBtn}</button></div><p>${text.level1_5_Desc}</p><div>${exercisesHTML}</div><div class="action-buttons"><button id="start-level2-btn" class="btn btn-success">${text.startLevel2Btn}</button></div>`;
+            }
+
+            const isLevel1 = App.state.studentLevel === 1;
+            exercises = isLevel1 ? App.currentExercises : this.level2Exercises.map((ex, i) => ({ q: this.i18n[lang].level2[`ex${i+1}`].q, a: ex.a}));
+            title = isLevel1 ? text.level1Title : text.level2Title;
+
+            exercisesHTML = exercises.map((ex, i) => {
+                const solution = typeof ex.a === 'function' ? ex.a() : ex.a;
+                const userAnswer = App.state.studentAnswers[i] || '';
+                let resultClass = '', resultFeedback = '';
+                
+                if (App.state.exercisesCorrected) {
+                    const isCorrect = parseFloat(userAnswer) === solution;
+                    resultClass = isCorrect ? 'correct' : 'incorrect';
+                    resultFeedback = isCorrect ? `<span class="result-feedback correct">✔ Correcto</span>` : `<span class="result-feedback incorrect">✖ Incorrecto (es ${solution} W)</span>`;
+                }
+                return `<div class="exercise ${resultClass}" id="exercise-${i}"><p>${ex.q}</p><div class="answer-box"><input type="number" placeholder="${lang === 'es' ? 'Respuesta en Vatios (W)' : 'Resposta en Watts (W)'}" data-index="${i}" value="${userAnswer}" ${App.state.exercisesCorrected ? 'disabled' : ''}><span>W</span>${resultFeedback}</div></div>`;
+            }).join('');
+
+            const correctCount = exercises.reduce((count, ex, i) => {
+                const solution = typeof ex.a === 'function' ? ex.a() : ex.a;
+                return parseFloat(App.state.studentAnswers[i]) === solution ? count + 1 : count;
+            }, 0);
+
+            if (App.state.exercisesCorrected) {
+                if (isLevel1) {
+                    if (correctCount === exercises.length) {
+                        summaryHTML = `<div id="results-summary">${text.resultsPerfect}<br>${text.resultsScore} ${correctCount} de ${exercises.length}.</div>`;
+                        actionButtonsHTML = `<button id="next-level-btn" class="btn btn-success">${text.nextLevelBtn}</button>`;
+                    } else {
+                        summaryHTML = `<div id="results-summary">${text.resultsScore} ${correctCount} de ${exercises.length}.<br>${text.resultsNeedPerfect}</div>`;
+                        actionButtonsHTML = `<button id="retry-btn" class="btn btn-warning">${text.retryBtn}</button>`;
+                    }
+                } else { // Level 2
+                    if (correctCount === exercises.length) {
+                        summaryHTML = `<div id="results-summary">${text.resultsExpert}</div>`;
+                    } else {
+                        summaryHTML = `<div id="results-summary">${text.resultsScore} ${correctCount} de ${exercises.length}.<br>${text.resultsKeepTrying}</div>`;
+                        actionButtonsHTML = `<button id="retry-btn" class="btn btn-primary">${text.retryLevel2Btn}</button>`;
+                    }
+                }
+            } else {
+                actionButtonsHTML = `<button id="check-answers-btn" class="btn btn-success">${text.checkAnswersBtn}</button>`;
+            }
+
+            return `
+                <div class="header"><h1>${title}</h1><button id="logout-btn" class="btn btn-secondary">${text.logoutBtn}</button></div>
+                <div>${exercisesHTML}</div>
+                <div class="action-buttons">${actionButtonsHTML}</div>
+                ${summaryHTML}`;
+        },
+        teacherView() {
+            const reports = App.state.reports;
+            let reportContent = "<h3>Informes de Alumnos</h3>";
+            if (Object.keys(reports).length === 0) {
+                reportContent += "<p>Aún no hay informes de alumnos para mostrar.</p>";
+            } else {
+                for (const studentName in reports) {
+                    reportContent += `<details class="student-report"><summary>${studentName}</summary>`;
+                    reports[studentName].forEach((attempt, index) => {
+                        reportContent += `
+                            <div class="attempt">
+                                <div class="attempt-header">
+                                    <span><b>Intento ${index + 1}:</b> ${attempt.date}</span>
+                                    <span><b>Nivel:</b> ${attempt.level}</span>
+                                    <span><b>Nota:</b> ${attempt.score}</span>
+                                    <button class="btn btn-primary btn-sm" data-student="${studentName}" data-attempt="${index}">Ver Detalles</button>
+                                </div>
+                                <div id="details-${studentName}-${index}" class="hidden">
+                                    <table class="details-table">
+                                        <thead><tr><th>Pregunta</th><th>Tu Respuesta</th><th>Respuesta Correcta</th></tr></thead>
+                                        <tbody>
+                                            ${attempt.details.map(d => `
+                                                <tr>
+                                                    <td>${d.q.replace(/<b>.*?<\/b>/, '')}</td>
+                                                    <td class="${d.isCorrect ? 'correct' : 'incorrect'}">${d.userAnswer || 'Sin respuesta'}</td>
+                                                    <td>${d.correctAnswer}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    reportContent += `</details>`;
+                }
+            }
+
+            return `
+                <div class="header"><h1>Panel del Profesor</h1><button id="logout-btn" class="btn btn-secondary">Cerrar Sesión</button></div>
+                
+                <div class="student-upload-section">
+                    <h3>Gestionar Alumnos</h3>
+                    <div class="form-group">
+                        <label for="student-file-upload">Subir lista de alumnos (.ods)</label>
+                        <input type="file" id="student-file-upload" accept=".ods">
+                        <p id="upload-feedback"></p>
+                    </div>
+                </div>
+
+                ${reportContent}
+            `;
+        }
+    },
+    
+    // --- EVENT LISTENERS ---
+    addLoginListeners() {
+        document.getElementById('student-login-form').addEventListener('submit', e => { e.preventDefault(); this.handleLogin('student'); });
+        document.getElementById('teacher-login-form').addEventListener('submit', e => { e.preventDefault(); this.handleLogin('teacher'); });
+        document.getElementById('lang-es').addEventListener('click', () => this.handleLanguageChange('es'));
+        document.getElementById('lang-ca').addEventListener('click', () => this.handleLanguageChange('ca'));
+    },
+    addStudentListeners() {
+        document.getElementById('logout-btn').addEventListener('click', () => this.handleLogout());
+        const startLevel1Btn = document.getElementById('start-level1-btn');
+        if (startLevel1Btn) startLevel1Btn.addEventListener('click', () => this.handleStartLevel1());
+
+        const startLevel2Btn = document.getElementById('start-level2-btn');
+        if (startLevel2Btn) startLevel2Btn.addEventListener('click', () => this.handleStartLevel2());
+        
+        const checkBtn = document.getElementById('check-answers-btn');
+        if (checkBtn) checkBtn.addEventListener('click', () => this.handleCheckAnswers());
+
+        const retryBtn = document.getElementById('retry-btn');
+        if (retryBtn) retryBtn.addEventListener('click', () => this.handleRetry());
+        
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        if (nextLevelBtn) nextLevelBtn.addEventListener('click', () => this.handleNextLevel());
+        
+        document.querySelectorAll('.exercise input').forEach(input => { input.addEventListener('input', e => { this.state.studentAnswers[e.target.dataset.index] = e.target.value; }); });
+    },
+    addTeacherListeners() {
+        document.getElementById('logout-btn').addEventListener('click', () => this.handleLogout());
+        document.getElementById('student-file-upload').addEventListener('change', e => this.handleFileUpload(e));
+        document.querySelectorAll('.attempt-header button').forEach(button => {
+            button.addEventListener('click', e => {
+                const { student, attempt } = e.target.dataset;
+                const detailsDiv = document.getElementById(`details-${student}-${attempt}`);
+                detailsDiv.classList.toggle('hidden');
+            });
+        });
+    },
+
+    // --- DATA & REPORTING ---
+    loadStudents() {
+        const storedStudents = localStorage.getItem('studentList');
+        if (storedStudents) {
+            this.state.students = JSON.parse(storedStudents);
+        } else {
+            // Default list if none is uploaded
+            this.state.students = [
+                { name: "Ana García", email: "ana@example.com" },
+                { name: "Carlos Pérez", email: "carlos@example.com" },
+                { name: "Lucía Martín", email: "lucia@example.com" },
+                { name: "Javier Rodríguez", email: "javier@example.com" }
+            ];
+        }
+    },
+
+    saveReport() {
+        const studentName = this.state.user;
+        if (!studentName) return;
+
+        const reports = JSON.parse(localStorage.getItem('studentReports')) || {};
+        if (!reports[studentName]) {
+            reports[studentName] = [];
+        }
+
+        const correctCount = this.currentExercises.reduce((count, ex, i) => {
+            const solution = typeof ex.a === 'function' ? ex.a() : ex.a;
+            return parseFloat(this.state.studentAnswers[i]) === solution ? count + 1 : count;
+        }, 0);
+
+        const newAttempt = {
+            date: new Date().toLocaleString('es-ES'),
+            level: this.state.studentLevel === 1 ? 'Nivel 1' : 'Nivel 2',
+            score: `${correctCount} / ${this.currentExercises.length}`,
+            passed: correctCount === this.currentExercises.length,
+            details: this.currentExercises.map((ex, i) => {
+                const solution = typeof ex.a === 'function' ? ex.a() : ex.a;
+                return {
+                    q: ex.q,
+                    userAnswer: this.state.studentAnswers[i],
+                    correctAnswer: solution,
+                    isCorrect: parseFloat(this.state.studentAnswers[i]) === solution
+                };
+            })
+        };
+        
+        reports[studentName].push(newAttempt);
+        localStorage.setItem('studentReports', JSON.stringify(reports));
+    },
+
+    loadReports() {
+        this.state.reports = JSON.parse(localStorage.getItem('studentReports')) || {};
+    },
+
+    // --- EVENT HANDLERS ---
+    handleLanguageChange(lang) {
+        this.state.language = lang;
+        localStorage.setItem('appLanguage', lang);
+        this.render();
+    },
+
+    handleFileUpload(event) {
+        const file = event.target.files[0];
+        const feedbackEl = document.getElementById('upload-feedback');
+        if (!file) {
+            feedbackEl.textContent = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                if (json.length > 0 && json[0].hasOwnProperty('alumno') && json[0].hasOwnProperty('email')) {
+                    const studentList = json.filter(row => row.alumno && row.email).map(row => ({ name: row.alumno, email: row.email }));
+                    
+                    if (studentList.length > 0) {
+                        App.state.students = studentList;
+                        localStorage.setItem('studentList', JSON.stringify(studentList));
+                        feedbackEl.textContent = `¡Éxito! Se han cargado ${studentList.length} alumnos.`;
+                        feedbackEl.style.color = 'var(--success-color)';
+                    } else {
+                        throw new Error("El archivo no contiene filas válidas.");
+                    }
+                } else {
+                    throw new Error("El archivo ODS debe tener las columnas 'alumno' y 'email'.");
+                }
+            } catch (error) {
+                feedbackEl.textContent = `Error: ${error.message}`;
+                feedbackEl.style.color = 'var(--danger-color)';
+            }
+        };
+        reader.onerror = () => {
+            feedbackEl.textContent = 'Error al leer el archivo.';
+            feedbackEl.style.color = 'var(--danger-color)';
+        };
+        reader.readAsArrayBuffer(file);
+    },
+
+    handleLogin(userType) {
+        const loginErrorEl = document.getElementById('login-error');
+        loginErrorEl.textContent = '';
+
+        if (userType === 'student') {
+            const selectedStudent = document.getElementById('student-user').value;
+            if (selectedStudent) {
+                this.state.user = selectedStudent;
+                this.state.currentView = 'student';
+                this.state.studentLevel = 0;
+                this.render();
+            } else {
+                loginErrorEl.textContent = 'Por favor, selecciona tu nombre.';
+            }
+        } else if (userType === 'teacher') {
+            const user = document.getElementById('teacher-user').value;
+            const pass = document.getElementById('teacher-pass').value;
+            if (user === 'profe' && pass === 'Feanor') {
+                this.state.user = 'Profesor';
+                this.state.currentView = 'teacher';
+                this.loadReports();
+                this.render();
+            } else {
+                loginErrorEl.textContent = 'Credenciales de profesor incorrectas.';
+            }
+        }
+    },
+    handleLogout() {
+        this.state = { ...this.state, currentView: 'login', user: null, studentAnswers: {}, exercisesCorrected: false, studentLevel: 0, reports: {} };
+        this.render();
+    },
+    handleStartLevel1() {
+        this.state.studentLevel = 1;
+        this.generateLevel1Exercises();
+        this.render();
+    },
+    handleStartLevel2() {
+        this.state.studentLevel = 2;
+        this.state.studentAnswers = {};
+        this.state.exercisesCorrected = false;
+        this.render();
+    },
+    handleCheckAnswers() { 
+        this.state.exercisesCorrected = true; 
+        this.saveReport();
+        this.render(); 
+    },
+    handleRetry() {
+        this.state.studentAnswers = {};
+        this.state.exercisesCorrected = false;
+        if (this.state.studentLevel === 1) this.generateLevel1Exercises();
+        this.render();
+    },
+    handleNextLevel() {
+        this.state.studentLevel = 1.5; // Go to intermediate solved exercises
+        this.state.studentAnswers = {};
+        this.state.exercisesCorrected = false;
+        this.render();
+    }
+};
+
+App.init();
+</script>
+</body>
+</html>
+
