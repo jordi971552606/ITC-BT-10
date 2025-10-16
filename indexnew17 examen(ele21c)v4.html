@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Ejercicios de Electricidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease-in-out;
+        }
+        .card:hover:not([style*="cursor: not-allowed"]) {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .btn-primary {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+         .btn-secondary {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #059669;
+        }
+        .login-tab {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 4px solid transparent;
+            font-weight: 500;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-6">
+    <div id="appContainer">
+        <div id="loginScreen">
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-4">EXAMEN D'APLICACIÓ ITC-BT-21</h1>
+            <div class="flex justify-center space-x-2 mb-6">
+                <button id="lang-ca" onclick="setLanguage('ca')" class="btn btn-sm">Català</button>
+                <button id="lang-es" onclick="setLanguage('es')" class="btn btn-sm">Castellano</button>
+            </div>
+            <div class="flex border-b mb-6">
+                <div id="tabAlumno" class="login-tab active flex-1 text-center" onclick="switchLoginTab('alumno')" data-lang-key="student">Alumno</div>
+                <div id="tabProfesor" class="login-tab flex-1 text-center" onclick="switchLoginTab('profesor')" data-lang-key="teacher">Profesor</div>
+            </div>
+            <div id="loginAlumno">
+                <label for="studentSelect" class="block text-sm font-medium text-gray-700 mb-2" data-lang-key="studentName">Nombre del Alumno:</label>
+                <select id="studentSelect" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></select>
+                <button onclick="login()" class="btn btn-secondary w-full mt-6" data-lang-key="login">Entrar</button>
+            </div>
+            <div id="loginProfesor" class="hidden">
+                 <label for="teacherPassword" class="block text-sm font-medium text-gray-700 mb-2" data-lang-key="password">Contraseña:</label>
+                 <input type="password" id="teacherPassword" placeholder="••••••••" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                 <button onclick="login()" class="btn btn-secondary w-full mt-6" data-lang-key="login">Entrar</button>
+                 <p id="teacherError" class="text-red-500 text-sm mt-2 text-center"></p>
+            </div>
+        </div>
+
+        <div id="studentDashboard" class="hidden">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 id="welcomeMessage" class="text-3xl font-bold text-gray-800"></h1>
+                    <p class="text-gray-500" data-lang-key="dashboardSubtitle">Primer, comença la gravació. Després, fes clic a 'Examen' per començar.</p>
+                </div>
+                <button onclick="logout()" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300" data-lang-key="logout">Salir</button>
+            </div>
+            <div class="flex flex-col justify-center items-center">
+                <button id="startRecordingBtn" class="btn btn-secondary w-full max-w-md mb-6" data-lang-key="startRecording">Començar la gravació</button>
+                <div id="examCard" class="card p-8 text-center w-full max-w-md" onclick="promptForExam()">
+                    <h2 class="text-2xl font-bold text-red-700 mb-3" data-lang-key="block5">Examen</h2>
+                    <p class="text-gray-600" data-lang-key="block5Desc">Un cop iniciada la gravació, fes clic aquí per accedir.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="teacherDashboard" class="hidden">
+             <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800" data-lang-key="teacherPanel">Panel del Profesor</h1>
+                </div>
+                <button onclick="logout()" class="btn bg-gray-200 text-gray-700 hover:bg-gray-300" data-lang-key="logout">Salir</button>
+            </div>
+        </div>
+
+        <div id="worksheetScreen" class="hidden">
+             <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 id="worksheetTitle" class="text-3xl font-bold text-gray-800"></h1>
+                    <p id="worksheetSubtitle" class="text-gray-500"></p>
+                </div>
+                 <div>
+                    </div>
+            </div>
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <div id="worksheetHeader"></div>
+                <div id="exerciseContent"></div>
+                <div id="exerciseNavigation" class="flex justify-between items-center mt-4 hidden">
+                    <button id="prevExerciseBtn" class="btn btn-secondary">&lt; Anterior</button>
+                    <span id="exerciseIndicator"></span>
+                    <button id="nextExerciseBtn" class="btn btn-secondary">Siguiente &gt;</button>
+                </div>
+                <div id="worksheetActions" class="text-center mt-8">
+                    <button id="sendReportBtn" onclick="sendReport()" class="btn btn-secondary hidden" data-lang-key="sendReport">Enviar Informe al Profesor</button>
+                    <button id="confirmCloseBtn" onclick="confirmAndClose()" class="btn btn-primary hidden" data-lang-key="confirmAndClose">Confirmar Entrega y Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS AND GLOBAL VARS ---
+        const googleSheetScriptUrl = 'https://script.google.com/macros/s/AKfycbwBXNPEeZRz3QC3KeaCm0EPy4MOnkQAJNNETHOTl8MtsyOgTvVVgABJZOZzarYWJi1y/exec';
+        const students = ["Dariel Aguasvivas de Jesus", "Alfonso Caballero Montiel", "Andrés Caballero Montiel", "José Manuel Castaño Herrera", "Bryan German Carvajal Vargas", "Mohamed El miri", "Miguel Alejandro Gonzalez Moreno", "Marc Jaime Darder", "Mohamed Kourouma", "Jaume Lopéz Llull", "Juan Luis Marquez Gutierrez", "Sofian Ochen Echahbouni", "Jeremy Josep Olivares llanos", "Joan Miquel Oliver Vidal", "Wasim Ouchen Benali", "Yamin Ouchen Benali"];
+        const teacherPassword = "profe";
+        const examPassword = "13HiXjW7ye5HKJxcHnWp";
+        let currentUser = null;
+        let currentWorksheetExercises = [];
+        let currentLanguage = 'ca';
+        let completedExams = JSON.parse(localStorage.getItem('completedExams')) || [];
+        let currentExerciseIndex = 0;
+
+        const generationConfig = { maxAttemptsPerSlot: 50 };
+        const installationTypes = ['superficial', 'aerea', 'empotrada', 'enterrada'];
+        const standardSections = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240];
+        const conductorDiameters = [{ section: 1.5, diameter: 2.9 }, { section: 2.5, diameter: 3.5 }, { section: 4, diameter: 4.1 }, { section: 6, diameter: 4.6 }, { section: 10, diameter: 6 }, { section: 16, diameter: 7 }, { section: 25, diameter: 8.6 }, { section: 35, diameter: 9.7 }, { section: 50, diameter: 11.5 }, { section: 70, diameter: 13.4 }, { section: 95, diameter: 15.4 }, { section: 120, diameter: 17.2 }, { section: 150, diameter: 19 }, { section: 185, diameter: 20.9 }, { section: 240, diameter: 24 }];
+        const rigidTubes = [{ external: 12, internal: 9 }, { external: 16, internal: 12.5 }, { external: 20, internal: 16 }, { external: 25, internal: 20 }, { external: 32, internal: 27 }, { external: 40, internal: 34.5 }, { external: 50, internal: 44 }, { external: 63, internal: 56.5 }, { external: 75, internal: 67 }, { external: 90, internal: 82 }];
+        const flexibleTubes = [{ external: 12, internal: 8.2 }, { external: 16, internal: 10.7 }, { external: 20, internal: 14.1 }, { external: 25, internal: 18.3 }, { external: 32, internal: 24.3 }, { external: 40, internal: 31.2 }, { external: 50, internal: 37 }, { external: 63, internal: 47 }, { external: 75, internal: 60 }, { external: 90, internal: 74 }, { external: 110, internal: 90 }, { external: 125, internal: 105 }, { external: 140, internal: 120 }, { external: 160, internal: 135 }, { external: 225, internal: 189 }, { external: 250, internal: 209 }];
+        
+        const tables = {
+            superficial: { data: [{ section: 1.5, conductors: { 1: 12, 2: 12, 3: 16, 4: 16, 5: 16 } }, { section: 2.5, conductors: { 1: 12, 2: 12, 3: 16, 4: 16, 5: 20 } }, { section: 4, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 20 } }, { section: 6, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 25 } }, { section: 10, conductors: { 1: 16, 2: 20, 3: 25, 4: 32, 5: 32 } }, { section: 16, conductors: { 1: 16, 2: 25, 3: 32, 4: 32, 5: 32 } }, { section: 25, conductors: { 1: 20, 2: 32, 3: 32, 4: 40, 5: 40 } }, { section: 35, conductors: { 1: 25, 2: 32, 3: 40, 4: 40, 5: 50 } }, { section: 50, conductors: { 1: 25, 2: 40, 3: 50, 4: 50, 5: 50 } }], name: "Tabla 2 (ITC-BT-21)", tubeType: "rígido", multiplier: 2.5, maxInTable: 5 },
+            aerea: { data: [{ section: 1.5, conductors: { 1: 12, 2: 12, 3: 16, 4: 16, 5: 20 } }, { section: 2.5, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 20 } }, { section: 4, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 25 } }, { section: 6, conductors: { 1: 12, 2: 16, 3: 25, 4: 25, 5: 25 } }, { section: 10, conductors: { 1: 16, 2: 25, 3: 25, 4: 32, 5: 32 } }, { section: 16, conductors: { 1: 20, 2: 25, 3: 32, 4: 32, 5: 40 } }], name: "Tabla 7 (ITC-BT-21)", tubeType: "flexible", multiplier: 4, maxInTable: 5 },
+            empotrada: { data: [{ section: 1.5, conductors: { 1: 12, 2: 12, 3: 16, 4: 16, 5: 20 } }, { section: 2.5, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 20 } }, { section: 4, conductors: { 1: 12, 2: 16, 3: 20, 4: 20, 5: 25 } }, { section: 6, conductors: { 1: 12, 2: 16, 3: 25, 4: 25, 5: 25 } }, { section: 10, conductors: { 1: 16, 2: 25, 3: 25, 4: 32, 5: 32 } }, { section: 16, conductors: { 1: 20, 2: 25, 3: 32, 4: 32, 5: 40 } }, { section: 25, conductors: { 1: 25, 2: 32, 3: 40, 4: 40, 5: 50 } }, { section: 35, conductors: { 1: 25, 2: 40, 3: 40, 4: 50, 5: 50 } }, { section: 50, conductors: { 1: 32, 2: 40, 3: 50, 4: 50, 5: 63 } }], name: "Tabla 5 (ITC-BT-21)", tubeType: "flexible", multiplier: 3, maxInTable: 5 },
+            enterrada: { data: [{ section: 1.5, conductors: { 6: 25, 7: 32, 8: 32, 9: 32, 10: 32 } }, { section: 2.5, conductors: { 6: 32, 7: 32, 8: 40, 9: 40, 10: 40 } }, { section: 4, conductors: { 6: 40, 7: 40, 8: 40, 9: 40, 10: 50 } }, { section: 6, conductors: { 6: 50, 7: 50, 8: 50, 9: 63, 10: 63 } }, { section: 10, conductors: { 6: 63, 7: 63, 8: 63, 9: 75, 10: 75 } }, { section: 16, conductors: { 6: 63, 7: 75, 8: 75, 9: 75, 10: 90 } }, { section: 25, conductors: { 6: 90, 7: 90, 8: 90, 9: 110, 10: 110 } }, { section: 35, conductors: { 6: 90, 7: 110, 8: 110, 9: 110, 10: 125 } }, { section: 50, conductors: { 6: 110, 7: 110, 8: 125, 9: 125, 10: 140 } }], name: "Tabla 9 (ITC-BT-21)", tubeType: "flexible", multiplier: 4, maxInTable: 10 }
+        };
+        const examRecipe = [{ block: 1, mode: 'lookup' }, { block: 1, mode: 'lookup' }, { block: 1, mode: 'calculation' }, { block: 2, mode: 'lookup' }, { block: 2, mode: 'lookup' }, { block: 2, mode: 'calculation' }, { block: 3, mode: 'lookup' }, { block: 3, mode: 'calculation' }, { block: 4, mode: null }, { block: 4, mode: null }];
+
+        const translations = {
+            es: {
+                student: "Alumno",
+                teacher: "Profesor",
+                studentName: "Nombre del Alumno:",
+                password: "Contraseña:",
+                login: "Entrar",
+                incorrectPassword: "Contraseña incorrecta.",
+                welcome: (name) => `¡Hola, ${name}!`,
+                dashboardSubtitle: "Haz clic en 'Examen' para empezar.",
+                logout: "Salir",
+                block5: "Examen",
+                block5Desc: "Haz clic aquí para acceder al examen.",
+                startRecording: "Comenzar la grabación",
+                examPasswordPrompt: "Introduzca la contraseña para el examen:",
+                teacherPanel: "Panel del Profesor",
+                back: "Volver",
+                sendReport: "Enviar Informe al Profesor",
+                sendingReport: "Enviando...",
+                reportSent: "Informe Enviado Correctamente",
+                reportError: "Error al enviar. Inténtalo de nuevo.",
+                confirmAndClose: "Confirmar grabación detenida y entrega en Classroom. CERRAR PESTAÑA.",
+                worksheet: "Hoja de Ejercicios",
+                worksheetSub: "Resuelve los siguientes ejercicios. ¡Mucha suerte!",
+                exercise: "Ejercicio",
+                date: "Fecha",
+                answer: "Respuesta",
+                generationError: "No se pudieron generar todos los ejercicios. Por favor, inténtalo de nuevo.",
+                generating: "Generando examen...",
+                examBlocked: "Ya has realizado este examen. Acceso bloqueado.",
+                installation_types: {
+                    superficial: 'superficial',
+                    aerea: 'aérea',
+                    empotrada: 'empotrada',
+                    enterrada: 'enterrada'
+                },
+                exercise_questions: {
+                    block1: (type, numConductors, section) => `Calcular el diámetro exterior mínimo de un tubo para una instalación ${type} que debe alojar ${numConductors} conductores de ${section} mm².`,
+                    block2: (type, section, diameter) => `¿Cuál es el número máximo de conductores de ${section} mm² que se pueden instalar en un tubo de ${diameter} mm de diámetro exterior en una instalación ${type}?`,
+                    block3: (type, totalConductors, section, diameter) => `Se necesita instalar ${totalConductors} conductores de ${section} mm² en una canalización ${type}. Si se utilizan tubos de ${diameter} mm, ¿cuál es el número mínimo de tubos necesarios?`,
+                    block4: (type, numConductors, section) => `Calcular el diámetro mínimo de un tubo para una derivación individual ${type}, que alojará ${numConductors} conductores de ${section} mm².`
+                },
+                solution_steps: {
+                    consult: (tableName) => `Consultar ${tableName}.`,
+                    row_for_section: (section) => `Fila para sección ${section} mm².`,
+                    column_for_conductors: (numConductors) => `Columna para ${numConductors} conductores.`,
+                    lookup_result: (diameter, result) => `Buscar el mayor nº de conductores cuyo diámetro sea <= ${diameter}mm. Resultado: ${result}.`,
+                    result: (correctAnswer) => `Resultado: ${correctAnswer} mm.`,
+                    area_conductor: (diameter, area) => `Área de 1 conductor (${diameter}mm ø): ${area} mm²`,
+                    total_area_conductors: (numConductors, totalArea) => `Área total de ${numConductors} conductores: ${totalArea} mm²`,
+                    required_internal_area: (multiplier, requiredArea) => `Área interna necesaria (x${multiplier}): ${requiredArea} mm²`,
+                    min_internal_diameter: (diameter) => `Diámetro interno mínimo: ${diameter} mm`,
+                    normalized_tube: (tubeType, external, internal) => `Tubo normalizado (${tubeType}) elegido: ${external}mm exterior (interior ${internal}mm)`,
+                    internal_diameter_of_tube: (diameter, internal) => `Diámetro interior de tubo de ${diameter}mm: ${internal} mm.`,
+                    internal_area: (area) => `Área interior: ${area} mm²`,
+                    max_occupancy_area: (multiplier, maxArea) => `Área máx. ocupable (/${multiplier}): ${maxArea} mm²`,
+                    max_conductors_result: (maxArea, conductorArea, result) => `Nº máximo = floor(${maxArea} / ${conductorArea}) = ${result}`,
+                    max_conductors_per_tube: (diameter, maxConductors) => `1. Máx. conductores por tubo de ${diameter}mm: ${maxConductors}.`,
+                    num_tubes_result: (totalConductors, maxConductors, result) => `2. Nº tubs = ceil(${totalConductors} / ${maxConductors}) = ${result}.`,
+                    forecast: (section, futureSection) => `Previsión: ${section}mm² * 2 = ${section*2}mm² -> ${futureSection}mm² normalizado.`,
+                    diameter_for_future: (numConductors, futureSection, diameter) => `Diámetro para ${numConductors} cond. de ${futureSection}mm²: ${diameter}mm.`,
+                    min_normative_di: `Mínimo normativo para D.I.: 32mm.`,
+                    result_max: (val1, result) => `Resultado = max(${val1}, 32) = ${result}mm.`
+                }
+            },
+            ca: {
+                student: "Alumne",
+                teacher: "Professor",
+                studentName: "Nom de l'alumne:",
+                password: "Contrasenya:",
+                login: "Entrar",
+                incorrectPassword: "Contrasenya incorrecta.",
+                welcome: (name) => `Hola, ${name}!`,
+                dashboardSubtitle: "Fes clic a 'Examen' per començar.",
+                logout: "Sortir",
+                block5: "Examen",
+                block5Desc: "Fes clic aquí per accedir a l'examen.",
+                startRecording: "Començar la gravació",
+                examPasswordPrompt: "Introduïu la contrasenya per a l'examen:",
+                teacherPanel: "Panell del Professor",
+                back: "Tornar",
+                sendReport: "Enviar Informe al Professor",
+                sendingReport: "Enviant...",
+                reportSent: "Informe Enviat Correctament",
+                reportError: "Error en l'enviament. Torna-ho a provar.",
+                confirmAndClose: "Confirmar gravació aturada i lliurament a Classroom. TANCAR PESTANYA.",
+                worksheet: "Full d'Exercicis",
+                worksheetSub: "Resol els exercicis següents. Molta sort!",
+                exercise: "Exercici",
+                date: "Data",
+                answer: "Resposta",
+                generationError: "No s'han pogut generar tots els exercicis. Si us plau, torna-ho a provar.",
+                generating: "Generant examen...",
+                examBlocked: "Ja has realitzat aquest examen. Accés bloquejat.",
+                installation_types: {
+                    superficial: 'superficial',
+                    aerea: 'aèria',
+                    empotrada: 'encastada',
+                    enterrada: 'enterrada'
+                },
+                exercise_questions: {
+                    block1: (type, numConductors, section) => `Calcular el diàmetre exterior mínim d'un tub per a una instal·lació ${type} que ha d'allotjar ${numConductors} conductors de ${section} mm².`,
+                    block2: (type, section, diameter) => `Quin és el nombre màxim de conductors de ${section} mm² que es poden instal·lar en un tub de ${diameter} mm de diàmetre exterior en una instal·lació ${type}?`,
+                    block3: (type, totalConductors, section, diameter) => `Es necessita instal·lar ${totalConductors} conductors de ${section} mm² en una canalització ${type}. Si s'utilitzen tubs de ${diameter} mm, quin és el nombre mínim de tubs necessaris?`,
+                    block4: (type, numConductors, section) => `Calcular el diàmetre mínim d'un tub per a una derivació individual ${type}, que allotjarà ${numConductors} conductors de ${section} mm².`
+                },
+                solution_steps: {
+                    consult: (tableName) => `Consultar ${tableName}.`,
+                    row_for_section: (section) => `Fila per a secció ${section} mm².`,
+                    column_for_conductors: (numConductors) => `Columna per a ${numConductors} conductors.`,
+                    lookup_result: (diameter, result) => `Buscar el major nº de conductors amb diàmetre <= ${diameter}mm. Resultat: ${result}.`,
+                    result: (correctAnswer) => `Resultat: ${correctAnswer} mm.`,
+                    area_conductor: (diameter, area) => `Àrea d'1 conductor (${diameter}mm ø): ${area} mm²`,
+                    total_area_conductors: (numConductors, totalArea) => `Àrea total de ${numConductors} conductors: ${totalArea} mm²`,
+                    required_internal_area: (multiplier, requiredArea) => `Àrea interna necessària (x${multiplier}): ${requiredArea} mm²`,
+                    min_internal_diameter: (diameter) => `Diàmetre intern mínim: ${diameter} mm`,
+                    normalized_tube: (tubeType, external, internal) => `Tub normalitzat (${tubeType}) triat: ${external}mm exterior (interior ${internal}mm)`,
+                    internal_diameter_of_tube: (diameter, internal) => `Diàmetre interior de tub de ${diameter}mm: ${internal} mm.`,
+                    internal_area: (area) => `Àrea interior: ${area} mm²`,
+                    max_occupancy_area: (multiplier, maxArea) => `Àrea màx. ocupable (/${multiplier}): ${maxArea} mm²`,
+                    max_conductors_result: (maxArea, conductorArea, result) => `Nº màxim = floor(${maxArea} / ${conductorArea}) = ${result}`,
+                    max_conductors_per_tube: (diameter, maxConductors) => `1. Màx. conductors per tub de ${diameter}mm: ${maxConductors}.`,
+                    num_tubes_result: (totalConductors, maxConductors, result) => `2. Nº tubs = ceil(${totalConductors} / ${maxConductors}) = ${result}.`,
+                    forecast: (section, futureSection) => `Previsió: ${section}mm² * 2 = ${section*2}mm² -> ${futureSection}mm² normalitzat.`,
+                    diameter_for_future: (numConductors, futureSection, diameter) => `Diàmetre per a ${numConductors} cond. de ${futureSection}mm²: ${diameter}mm.`,
+                    min_normative_di: `Mínim normatiu para D.I.: 32mm.`,
+                    result_max: (val1, result) => `Resultat = max(${val1}, 32) = ${result}mm.`
+                }
+            }
+        };
+
+        // --- UI & STATE MANAGEMENT ---
+        function showScreen(screenId) {
+            ['loginScreen', 'studentDashboard', 'teacherDashboard', 'worksheetScreen'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            document.getElementById(screenId)?.classList.remove('hidden');
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+
+            // Update button styles
+            document.getElementById('lang-ca').classList.toggle('bg-indigo-600', lang === 'ca');
+            document.getElementById('lang-ca').classList.toggle('text-white', lang === 'ca');
+            document.getElementById('lang-ca').classList.toggle('bg-gray-200', lang !== 'ca');
+            document.getElementById('lang-ca').classList.toggle('text-gray-700', lang !== 'ca');
+            
+            document.getElementById('lang-es').classList.toggle('bg-indigo-600', lang === 'es');
+            document.getElementById('lang-es').classList.toggle('text-white', lang === 'es');
+            document.getElementById('lang-es').classList.toggle('bg-gray-200', lang !== 'es');
+            document.getElementById('lang-es').classList.toggle('text-gray-700', lang !== 'es');
+
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.dataset.langKey;
+                const translation = translations[lang][key];
+                if (translation && typeof translation === 'string') {
+                    el.textContent = translation;
+                }
+            });
+
+            if (currentUser) {
+                document.getElementById('welcomeMessage').textContent = translations[currentLanguage].welcome(currentUser);
+            }
+        }
+        
+        function populateStudents() {
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '';
+            students.sort().forEach(student => {
+                const option = document.createElement('option');
+                option.value = student;
+                option.textContent = student;
+                select.appendChild(option);
+            });
+        }
+        
+        function switchLoginTab(tab) {
+            document.getElementById('tabAlumno').classList.toggle('active', tab === 'alumno');
+            document.getElementById('tabProfesor').classList.toggle('active', tab !== 'alumno');
+            document.getElementById('loginAlumno').classList.toggle('hidden', tab !== 'alumno');
+            document.getElementById('loginProfesor').classList.toggle('hidden', tab === 'alumno');
+        }
+        
+        function disableExamAccess() {
+            const examCard = document.querySelector('.card[onclick="promptForExam()"]');
+            if (examCard) {
+                examCard.onclick = null;
+                examCard.style.cursor = 'not-allowed';
+                examCard.style.opacity = '0.6';
+                const desc = examCard.querySelector('p');
+                if (desc) {
+                    desc.textContent = translations[currentLanguage].examBlocked;
+                }
+            }
+        }
+
+        function login() {
+             if (document.getElementById('loginAlumno').offsetParent !== null) {
+                currentUser = document.getElementById('studentSelect').value;
+                document.getElementById('welcomeMessage').textContent = translations[currentLanguage].welcome(currentUser);
+                showScreen('studentDashboard');
+                if (completedExams.includes(currentUser)) {
+                    disableExamAccess();
+                }
+             } else {
+                if (document.getElementById('teacherPassword').value === teacherPassword) {
+                    currentUser = "Profesor";
+                    showScreen('teacherDashboard');
+                } else {
+                    document.getElementById('teacherError').textContent = translations[currentLanguage].incorrectPassword;
+                }
+             }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('teacherPassword').value = '';
+            document.getElementById('teacherError').textContent = '';
+            showScreen('loginScreen');
+        }
+
+        // --- EXAM LOGIC ---
+        function promptForExam() {
+            const lang = translations[currentLanguage];
+            const password = prompt(lang.examPasswordPrompt);
+            if (password === examPassword) {
+                if (!completedExams.includes(currentUser)) {
+                    completedExams.push(currentUser);
+                    localStorage.setItem('completedExams', JSON.stringify(completedExams));
+                }
+                disableExamAccess();
+                generateWorksheet();
+            } else if (password !== null && password !== "") {
+                alert(lang.incorrectPassword);
+            }
+        }
+
+        function generateExercise(block, forcedMode = null) {
+            const lang = translations[currentLanguage];
+            const sol = lang.solution_steps;
+            const typeKey = getRandomElement(installationTypes);
+            const type = lang.installation_types[typeKey];
+            const tableInfo = tables[typeKey];
+            const table = tableInfo.data;
+            let randomRow = getRandomElement(table);
+            let section = randomRow.section;
+            let question = "", solutionSteps = [], correctAnswer = null;
+
+            try {
+                if (block === 1) { // Min Tube Diameter
+                    const isCalculation = forcedMode === 'calculation';
+                    const isBuried = typeKey === 'enterrada';
+                    const numConductors = isCalculation ? getRandomInt(tableInfo.maxInTable + 1, tableInfo.maxInTable + 5) : (isBuried ? getRandomInt(7, 10) : getRandomInt(3, 5));
+                    
+                    question = lang.exercise_questions.block1(type, numConductors, section);
+                    
+                    if (isCalculation) {
+                        const conductorData = conductorDiameters.find(c => c.section === section);
+                        if (!conductorData) return null;
+                        const conductorArea = Math.PI * Math.pow(conductorData.diameter / 2, 2);
+                        const totalConductorArea = numConductors * conductorArea;
+                        const requiredInternalArea = totalConductorArea * tableInfo.multiplier;
+                        const requiredInternalDiameter = Math.sqrt(requiredInternalArea / Math.PI) * 2;
+                        const tubeSet = tableInfo.tubeType === 'rígido' ? rigidTubes : flexibleTubes;
+                        const suitableTube = tubeSet.find(t => t.internal >= requiredInternalDiameter);
+                        if (!suitableTube) return null;
+                        correctAnswer = suitableTube.external;
+                        solutionSteps = [ 
+                            sol.area_conductor(conductorData.diameter, conductorArea.toFixed(2)),
+                            sol.total_area_conductors(numConductors, totalConductorArea.toFixed(2)),
+                            sol.required_internal_area(tableInfo.multiplier, requiredInternalArea.toFixed(2)),
+                            sol.min_internal_diameter(requiredInternalDiameter.toFixed(2)),
+                            sol.normalized_tube(tableInfo.tubeType, suitableTube.external, suitableTube.internal)
+                        ];
+                    } else { // Lookup
+                        const lookupKey = (isBuried && numConductors <= 6) ? 6 : numConductors;
+                        if (!randomRow.conductors[lookupKey]) return null;
+                        correctAnswer = randomRow.conductors[lookupKey];
+                        solutionSteps = [
+                            sol.consult(tableInfo.name),
+                            sol.row_for_section(section),
+                            sol.column_for_conductors(numConductors),
+                            sol.result(correctAnswer)
+                        ];
+                    }
+                } else if (block === 2) { // Max Conductors
+                    const tubeSet = tableInfo.tubeType === 'rígido' ? rigidTubes : flexibleTubes;
+                    const randomTube = getRandomElement(tubeSet.filter(t => t.external >= 20));
+                    if (!randomTube) return null;
+                    const diameter = randomTube.external;
+                    question = lang.exercise_questions.block2(type, section, diameter);
+                    
+                    // Determinar el diámetro máximo en la tabla para esta sección
+                    const maxConductorsInTable = typeKey === 'enterrada' ? 10 : 5;
+                    const maxDiameterInTable = randomRow.conductors[maxConductorsInTable];
+                    
+                    // Si el tubo es mayor o igual al máximo de la tabla, calcular por secciones
+                    const shouldCalculateByArea = forcedMode === 'calculation' || (diameter >= maxDiameterInTable);
+                    
+                    if (shouldCalculateByArea) {
+                        const conductorData = conductorDiameters.find(c => c.section === section);
+                        if(!conductorData) return null;
+                        const conductorArea = Math.PI * Math.pow(conductorData.diameter / 2, 2);
+                        const tubeInternalArea = Math.PI * Math.pow(randomTube.internal / 2, 2);
+                        const maxConductorArea = tubeInternalArea / tableInfo.multiplier;
+                        correctAnswer = Math.floor(maxConductorArea / conductorArea);
+                        if (correctAnswer <= 0) return null; // Invalid result
+                        solutionSteps = [
+                            sol.internal_diameter_of_tube(diameter, randomTube.internal),
+                            sol.internal_area(tubeInternalArea.toFixed(2)),
+                            sol.max_occupancy_area(tableInfo.multiplier, maxConductorArea.toFixed(2)),
+                            sol.area_conductor(conductorData.diameter, conductorArea.toFixed(2)),
+                            sol.max_conductors_result(maxConductorArea.toFixed(2), conductorArea.toFixed(2), correctAnswer)
+                        ];
+                    } else { // Lookup
+                        let maxConductors = 0;
+                        // Buscar en la tabla el máximo número de conductores que requiere un diámetro <= al tubo disponible
+                        for (let numConductors = 1; numConductors <= tableInfo.maxInTable; numConductors++) {
+                            if (randomRow.conductors[numConductors] && randomRow.conductors[numConductors] <= diameter) {
+                                maxConductors = numConductors;
+                            }
+                        }
+                        // Para instalaciones enterradas, también verificar conductores 6-10
+                        if (typeKey === 'enterrada') {
+                            for (let numConductors = 6; numConductors <= 10; numConductors++) {
+                                if (randomRow.conductors[numConductors] && randomRow.conductors[numConductors] <= diameter) {
+                                    maxConductors = Math.max(maxConductors, numConductors);
+                                }
+                            }
+                        }
+                        if (maxConductors === 0) return null; // No valid configuration found
+                        correctAnswer = maxConductors;
+                        solutionSteps = [
+                            sol.consult(tableInfo.name),
+                            sol.row_for_section(section),
+                            sol.lookup_result(diameter, correctAnswer)
+                        ];
+                    }
+                } else if (block === 3) { // Min Tubes
+                    const totalConductors = getRandomInt(10, 30);
+                    const tubeSet = tableInfo.tubeType === 'rígido' ? rigidTubes : flexibleTubes;
+                    const randomTube = getRandomElement(tubeSet.filter(t => t.external >= 20));
+                    if(!randomTube) return null;
+                    const diameter = randomTube.external;
+                    question = lang.exercise_questions.block3(type, totalConductors, section, diameter);
+                    
+                    let maxConductorsPerTube = 0;
+                    
+                    // Determinar el diámetro máximo en la tabla para esta sección
+                    const maxConductorsInTable = typeKey === 'enterrada' ? 10 : 5;
+                    const maxDiameterInTable = randomRow.conductors[maxConductorsInTable];
+                    
+                    // Si el tubo es mayor o igual al máximo de la tabla, calcular por secciones
+                    const shouldCalculateByArea = forcedMode === 'calculation' || (diameter >= maxDiameterInTable);
+                    
+                    if (shouldCalculateByArea) {
+                         const conductorData = conductorDiameters.find(c => c.section === section);
+                         if(!conductorData) return null;
+                         const conductorArea = Math.PI * Math.pow(conductorData.diameter / 2, 2);
+                         const tubeInternalArea = Math.PI * Math.pow(randomTube.internal / 2, 2);
+                         const maxConductorArea = tubeInternalArea / tableInfo.multiplier;
+                         maxConductorsPerTube = Math.floor(maxConductorArea / conductorArea);
+                    } else {
+                         // Buscar en la tabla el máximo número de conductores que requiere un diámetro <= al tubo disponible
+                         for (let numConductors = 1; numConductors <= tableInfo.maxInTable; numConductors++) {
+                            if (randomRow.conductors[numConductors] && randomRow.conductors[numConductors] <= diameter) {
+                                maxConductorsPerTube = numConductors;
+                            }
+                         }
+                         // Para instalaciones enterradas, también verificar conductores 6-10
+                         if (typeKey === 'enterrada') {
+                            for (let numConductors = 6; numConductors <= 10; numConductors++) {
+                                if (randomRow.conductors[numConductors] && randomRow.conductors[numConductors] <= diameter) {
+                                    maxConductorsPerTube = Math.max(maxConductorsPerTube, numConductors);
+                                }
+                            }
+                         }
+                    }
+                    if (maxConductorsPerTube === 0) return null;
+                    correctAnswer = Math.ceil(totalConductors / maxConductorsPerTube);
+                    solutionSteps = [
+                        sol.max_conductors_per_tube(diameter, maxConductorsPerTube),
+                        sol.num_tubes_result(totalConductors, maxConductorsPerTube, correctAnswer)
+                    ];
+                } else if (block === 4) { // Individual derivation
+                    const numConductors = getRandomElement([3, 5]);
+                    let validSections = table.filter(r => r.section >= 6 && findNextStandardSection(r.section * 2));
+                    if (validSections.length === 0) validSections = table.filter(r => r.section >= 6);
+                    if (validSections.length === 0) return null;
+                    section = getRandomElement(validSections).section;
+                    question = lang.exercise_questions.block4(type, numConductors, section);
+                    
+                    const futureSectionValue = findNextStandardSection(section * 2);
+                    if(!futureSectionValue) return null;
+                    const futureRow = table.find(r => r.section === futureSectionValue);
+                    if (!futureRow || !futureRow.conductors[numConductors]) return null;
+                    const diameter_future = futureRow.conductors[numConductors];
+                    correctAnswer = Math.max(diameter_future, 32);
+                    solutionSteps = [
+                        sol.forecast(section, futureSectionValue),
+                        sol.diameter_for_future(numConductors, futureSectionValue, diameter_future),
+                        sol.min_normative_di,
+                        sol.result_max(diameter_future, correctAnswer)
+                    ];
+                }
+            } catch (error) {
+                console.error("Error generating exercise:", error);
+                return null;
+            }
+            if(correctAnswer === null || !isFinite(correctAnswer) || correctAnswer === 0) return null;
+
+            return { question, solutionSteps, correctAnswer };
+        }
+        
+        function showExercise(index) {
+            const lang = translations[currentLanguage];
+            const container = document.getElementById('exerciseContent');
+            container.innerHTML = ''; // Clear previous exercise
+
+            const ex = currentWorksheetExercises[index];
+            if (!ex) return;
+
+            const exerciseDiv = document.createElement('div');
+            exerciseDiv.className = 'p-4 border-b';
+            exerciseDiv.innerHTML = `<p class="font-medium text-gray-800 mb-4"><b>${lang.exercise} ${index + 1}:</b> ${ex.question}</p><div class="mt-2"><label for="student-answer-${index + 1}" class="block text-sm font-medium text-gray-600">${lang.answer}:</label><input type="text" id="student-answer-${index + 1}" class="student-answer-input mt-1 p-2 border border-gray-300 rounded-md w-full" value="${ex.studentAnswer || ''}"></div>`;
+            container.appendChild(exerciseDiv);
+
+            const input = document.getElementById(`student-answer-${index + 1}`);
+            input.addEventListener('change', () => {
+                ex.studentAnswer = input.value;
+            });
+
+            document.getElementById('exerciseIndicator').textContent = `${index + 1} / ${currentWorksheetExercises.length}`;
+            document.getElementById('prevExerciseBtn').disabled = index === 0;
+            document.getElementById('nextExerciseBtn').disabled = index === currentWorksheetExercises.length - 1;
+
+            const sendBtn = document.getElementById('sendReportBtn');
+            if (index === currentWorksheetExercises.length - 1) {
+                sendBtn.classList.remove('hidden');
+            } else {
+                sendBtn.classList.add('hidden');
+            }
+        }
+
+        function generateWorksheet() {
+            const lang = translations[currentLanguage];
+            const headerContainer = document.getElementById('worksheetHeader');
+            const exerciseContainer = document.getElementById('exerciseContent');
+            headerContainer.innerHTML = '';
+            exerciseContainer.innerHTML = `<div class="text-center"><div class="loader"></div><p>${lang.generating}</p></div>`;
+            showScreen('worksheetScreen');
+            document.getElementById('exerciseNavigation').classList.add('hidden');
+
+            setTimeout(() => {
+                currentWorksheetExercises = [];
+                const generatedExercises = [];
+                
+                examRecipe.forEach((recipe, index) => {
+                    let exercise = null;
+                    for (let i = 0; i < generationConfig.maxAttemptsPerSlot; i++) {
+                        exercise = generateExercise(recipe.block, recipe.mode);
+                        if (exercise) break;
+                    }
+                    if (exercise) {
+                        generatedExercises.push({ ...exercise, studentAnswer: '' });
+                    } else {
+                         console.warn(`Failed to generate exercise for recipe index ${index}:`, recipe);
+                    }
+                });
+
+                currentWorksheetExercises = generatedExercises;
+                currentExerciseIndex = 0;
+                
+                document.getElementById('worksheetTitle').textContent = lang.worksheet + " - " + lang.block5;
+                document.getElementById('worksheetSubtitle').textContent = lang.worksheetSub;
+                headerContainer.innerHTML = `<div class="flex justify-between items-center border-b pb-2 mb-4"><div><b class="text-lg">${lang.student}:</b> ${currentUser}</div><div><b class="text-lg">${lang.date}:</b> ${new Date().toLocaleDateString(currentLanguage === 'ca' ? 'ca-ES' : 'es-ES')}</div></div>`;
+
+                if (generatedExercises.length < examRecipe.length) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = "p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50";
+                    errorDiv.textContent = lang.generationError;
+                    exerciseContainer.innerHTML = '';
+                    exerciseContainer.appendChild(errorDiv);
+                    document.getElementById('sendReportBtn').classList.add('hidden');
+                } else {
+                    showExercise(currentExerciseIndex);
+                    document.getElementById('exerciseNavigation').classList.remove('hidden');
+                }
+
+                document.getElementById('sendReportBtn').disabled = false;
+                document.getElementById('sendReportBtn').textContent = lang.sendReport;
+                document.getElementById('confirmCloseBtn').classList.add('hidden');
+            }, 100);
+        }
+        
+        function sendReport() {
+            const lang = translations[currentLanguage];
+            const sendBtn = document.getElementById('sendReportBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = lang.sendingReport;
+
+            const report = {
+                student: currentUser,
+                date: new Date().toISOString(),
+                exercises: currentWorksheetExercises.map((exercise, index) => ({
+                    question: exercise.question,
+                    studentAnswer: exercise.studentAnswer.trim(),
+                    correctAnswer: exercise.correctAnswer,
+                    resolution: exercise.solutionSteps.join('\n')
+                }))
+            };
+
+            const formData = new FormData();
+            formData.append('report', JSON.stringify(report));
+
+            const iframe = document.createElement('iframe');
+            iframe.name = 'sendReportFrame';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = googleSheetScriptUrl;
+            form.target = iframe.name;
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'report';
+            input.value = JSON.stringify(report);
+            form.appendChild(input);
+
+            document.body.appendChild(form);
+            form.submit();
+
+            setTimeout(() => {
+                try {
+                    document.body.removeChild(iframe);
+                    document.body.removeChild(form);
+                } catch (e) {
+                    console.error("Error removing iframe/form:", e);
+                }
+
+                const finalMessage = document.createElement('div');
+                finalMessage.className = "text-center p-4 bg-green-100 text-green-800 rounded-lg mt-4";
+                finalMessage.textContent = lang.reportSent;
+                document.getElementById('worksheetActions').insertAdjacentElement('beforebegin', finalMessage);
+                
+                sendBtn.classList.add('hidden');
+                document.getElementById('confirmCloseBtn').classList.remove('hidden');
+                document.querySelectorAll('.student-answer-input').forEach(input => input.disabled = true);
+            }, 2500); // Wait 2.5 seconds before assuming success.
+        }
+        
+        function confirmAndClose() {
+            window.close();
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function getRandomElement(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function findNextStandardSection(section) { return standardSections.find(s => s >= section); }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            populateStudents();
+            setLanguage(currentLanguage);
+            showScreen('loginScreen');
+
+            const appContainer = document.getElementById('appContainer');
+            appContainer.addEventListener('click', (event) => {
+                if (event.target.id === 'startRecordingBtn') {
+                    const examCard = document.getElementById('examCard');
+                    if (examCard) {
+                        window.open('https://www.screencapture.com/es/', '_blank');
+                        examCard.classList.remove('hidden');
+                    }
+                }
+            });
+
+            const prevBtn = document.getElementById('prevExerciseBtn');
+            const nextBtn = document.getElementById('nextExerciseBtn');
+
+            prevBtn.addEventListener('click', () => {
+                if (currentExerciseIndex > 0) {
+                    currentExerciseIndex--;
+                    showExercise(currentExerciseIndex);
+                }
+            });
+
+            nextBtn.addEventListener('click', () => {
+                if (currentExerciseIndex < currentWorksheetExercises.length - 1) {
+                    currentExerciseIndex++;
+                    showExercise(currentExerciseIndex);
+                }
+            });
+        };
+    </script>
+</body>
+</html>
